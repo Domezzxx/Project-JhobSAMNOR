@@ -12,6 +12,12 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   port: Number(process.env.PORT ?? 4000),
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
-  openaiApiKey: process.env.OPENAI_API_KEY, // optional — ไม่มีก็ใช้ fallback coach
+  // AI Coach providers (ใส่ตัวไหน ตัวนั้นถูกใช้; ลำดับ Typhoon → Groq → OpenAI → fallback)
+  typhoonApiKey: process.env.TYPHOON_API_KEY,
+  typhoonModel: process.env.TYPHOON_MODEL ?? 'typhoon-v2.5-30b-a3b-instruct',
+  groqApiKey: process.env.GROQ_API_KEY,
+  groqModel: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+  openaiApiKey: process.env.OPENAI_API_KEY,
   openaiModel: process.env.OPENAI_MODEL ?? 'gpt-3.5-turbo',
+  openaiBaseUrl: process.env.OPENAI_BASE_URL, // custom OpenAI-compatible endpoint (optional)
 };

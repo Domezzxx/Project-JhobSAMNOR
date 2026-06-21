@@ -12,29 +12,50 @@ export interface CoachReply {
   source: string; // ชื่อ model หรือ 'fallback'
 }
 
-/** เรียก LLM ถ้ามี OPENAI_API_KEY, ไม่งั้นใช้ fallback rule-based (ตอบจากข้อมูลจริง) */
+interface LlmProvider {
+  name: string;
+  apiKey: string;
+  model: string;
+  baseURL?: string;
+}
+
+/** ลำดับการลอง: Typhoon (ไทยดีสุด) → Groq (เร็ว) → OpenAI. ใส่ key ตัวไหน ตัวนั้นถูกใช้ */
+function configuredProviders(): LlmProvider[] {
+  const list: LlmProvider[] = [];
+  if (env.typhoonApiKey)
+    list.push({ name: 'typhoon', apiKey: env.typhoonApiKey, model: env.typhoonModel, baseURL: 'https://api.opentyphoon.ai/v1' });
+  if (env.groqApiKey)
+    list.push({ name: 'groq', apiKey: env.groqApiKey, model: env.groqModel, baseURL: 'https://api.groq.com/openai/v1' });
+  if (env.openaiApiKey)
+    list.push({ name: 'openai', apiKey: env.openaiApiKey, model: env.openaiModel, baseURL: env.openaiBaseUrl });
+  return list;
+}
+
+/** เรียก LLM ตามลำดับ provider ที่ตั้ง key ไว้; ถ้าไม่มี key หรือทุกตัวล้มเหลว → fallback rule-based */
 export async function generateReply(
   context: CoachContext,
   question: string,
   history: ChatTurn[],
 ): Promise<CoachReply> {
-  if (env.openaiApiKey) {
+  const messages = [
+    { role: 'system' as const, content: buildSystemPrompt(context) },
+    ...history.slice(-6),
+    { role: 'user' as const, content: question },
+  ];
+
+  for (const p of configuredProviders()) {
     try {
-      const client = new OpenAI({ apiKey: env.openaiApiKey });
+      const client = new OpenAI({ apiKey: p.apiKey, baseURL: p.baseURL });
       const resp = await client.chat.completions.create({
-        model: env.openaiModel,
+        model: p.model,
         temperature: 0.6,
         max_tokens: 350,
-        messages: [
-          { role: 'system', content: buildSystemPrompt(context) },
-          ...history.slice(-6),
-          { role: 'user', content: question },
-        ],
+        messages,
       });
       const reply = resp.choices[0]?.message?.content?.trim();
-      if (reply) return { reply, source: env.openaiModel };
+      if (reply) return { reply, source: `${p.name}:${p.model}` };
     } catch (e) {
-      console.error('[coach] OpenAI error, ใช้ fallback:', (e as Error).message);
+      console.error(`[coach] ${p.name} ล้มเหลว, ลอง provider ถัดไป:`, (e as Error).message);
     }
   }
   return { reply: fallbackReply(context, question), source: 'fallback' };
