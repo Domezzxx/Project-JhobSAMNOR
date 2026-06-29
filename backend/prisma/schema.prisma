@@ -20,6 +20,8 @@ model User {
   provider      String   @default("local") // local | google | facebook
   providerId    String? // id จากผู้ให้บริการ (Google sub / Facebook id)
   avatarUrl     String?
+  gmailRefreshToken String? // refresh token สำหรับ email parsing (ควรเข้ารหัสใน prod)
+  gmailConnectedAt  DateTime?
   monthlyIncome Int      @default(0) // satang
   level         Int      @default(1)
   streak        Int      @default(0)
@@ -55,7 +57,8 @@ model Transaction {
   type       String // income | expense
   amount     Int // satang
   note       String?
-  source     String   @default("manual") // manual | ocr | sms
+  source     String   @default("manual") // manual | ocr | sms | email
+  externalId String? // id จากแหล่งภายนอก (เช่น Gmail message id) — กันลงซ้ำ
   categoryId String?
   occurredAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -65,6 +68,7 @@ model Transaction {
   category Category? @relation(fields: [categoryId], references: [id])
 
   @@index([userId, occurredAt])
+  @@unique([userId, externalId])
 }
 
 model Budget {

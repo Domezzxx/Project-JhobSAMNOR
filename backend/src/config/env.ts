@@ -23,6 +23,8 @@ export const env = {
   openaiBaseUrl: process.env.OPENAI_BASE_URL, // custom OpenAI-compatible endpoint (optional)
   // Social login — client id จาก Google Cloud / Facebook for Developers (ดู docs/SETUP_SOCIAL_LOGIN.md)
   googleClientId: process.env.GOOGLE_CLIENT_ID, // ใส่หลาย id คั่นด้วย , ได้ (web/android/ios)
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET, // สำหรับ Gmail OAuth (email parsing)
+  gmailRedirectUri: process.env.GMAIL_REDIRECT_URI ?? 'http://localhost:4000/api/v1/integrations/gmail/callback',
   facebookAppId: process.env.FACEBOOK_APP_ID,
   facebookAppSecret: process.env.FACEBOOK_APP_SECRET,
 };
