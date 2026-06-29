@@ -45,7 +45,7 @@ integrationsRouter.post(
         });
         imported++;
       } catch {
-        // ซ้ำ → ข้าม
+        // ซ้ำ (unique userId+externalId) → ข้าม
       }
     }
     res.json({ rows: rows.length, imported });

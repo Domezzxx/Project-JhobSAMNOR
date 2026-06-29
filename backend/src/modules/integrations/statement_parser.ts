@@ -17,7 +17,7 @@ const THAI_MONTHS: Record<string, number> = {
 const CREDIT_KW = /(เงินเข้า|รับโอน|โอนเข้า|ดอกเบี้ย|เงินปันผล|รับเงิน|deposit|credit|interest|received|refund)/i;
 
 function toYear(y: number): number {
-  if (y < 100) y += 2000;
+  if (y < 100) y += 2500; // ปี 2 หลักในไทย = พ.ศ. (69 -> 2569)
   if (y > 2400) y -= 543; // พ.ศ. -> ค.ศ.
   return y;
 }
