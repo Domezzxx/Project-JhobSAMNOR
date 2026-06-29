@@ -60,8 +60,11 @@ export async function syncGmailTransactions(userId: string): Promise<{ scanned: 
     const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
     const from = headers.find((h) => h.name === 'From')?.value ?? '';
     const body = extractBody(full.data.payload) || full.data.snippet || '';
+    const receivedAt = full.data.internalDate
+      ? new Date(Number(full.data.internalDate))
+      : undefined;
 
-    const parsed = parseBankEmail({ subject, body, from, messageId: m.id });
+    const parsed = parseBankEmail({ subject, body, from, messageId: m.id, receivedAt });
     if (!parsed) continue;
     try {
       await prisma.transaction.create({

@@ -52,6 +52,26 @@ class ProfileScreen extends ConsumerWidget {
               style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textDark)),
           const SizedBox(height: 12),
           const _GmailCard(),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () => context.push('/import-statement'),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: softCard(),
+              child: const Row(
+                children: [
+                  Icon(Icons.upload_file_rounded, color: AppColors.primary),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text('นำเข้า e-Statement (PDF)',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textDark)),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 28),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.expense),

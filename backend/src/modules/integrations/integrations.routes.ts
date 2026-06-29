@@ -3,8 +3,54 @@ import { asyncHandler, HttpError } from '../../lib/http';
 import { requireAuth } from '../../lib/auth';
 import { prisma } from '../../lib/prisma';
 import { getGmailAuthUrl, connectGmailFromCode, syncGmailTransactions } from './gmail';
+import { extractPdfText, PdfNeedsPasswordError, PdfWrongPasswordError } from './pdf';
+import { parseStatementText } from './statement_parser';
 
 export const integrationsRouter = Router();
+
+// POST /api/v1/integrations/statement/import — อัปโหลด e-Statement PDF (+รหัส) → parse → ลงรายการ
+integrationsRouter.post(
+  '/statement/import',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { fileBase64, password } = req.body as { fileBase64?: string; password?: string };
+    if (!fileBase64) throw new HttpError(400, 'ต้องส่ง fileBase64 (ไฟล์ PDF)');
+    const buf = Buffer.from(fileBase64.replace(/^data:[^;]*;base64,/, ''), 'base64');
+
+    let text: string;
+    try {
+      text = await extractPdfText(buf, password);
+    } catch (e) {
+      if (e instanceof PdfNeedsPasswordError || e instanceof PdfWrongPasswordError) {
+        throw new HttpError(422, e.message);
+      }
+      throw new HttpError(400, 'อ่าน PDF ไม่ได้: ' + (e instanceof Error ? e.message : 'unknown'));
+    }
+
+    const rows = parseStatementText(text);
+    let imported = 0;
+    for (const r of rows) {
+      const externalId = `stmt-${r.occurredAt.toISOString().slice(0, 10)}-${r.amount}-${r.note.slice(0, 16)}`;
+      try {
+        await prisma.transaction.create({
+          data: {
+            userId: req.userId!,
+            type: r.type,
+            amount: r.amount,
+            note: r.note,
+            source: 'statement',
+            externalId,
+            occurredAt: r.occurredAt,
+          },
+        });
+        imported++;
+      } catch {
+        // ซ้ำ → ข้าม
+      }
+    }
+    res.json({ rows: rows.length, imported });
+  }),
+);
 
 // GET /api/v1/integrations/gmail/connect — คืน url ให้เปิดหน้า consent ของ Google
 integrationsRouter.get(
