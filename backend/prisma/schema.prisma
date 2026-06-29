@@ -15,8 +15,11 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   phone         String?
-  passwordHash  String
+  passwordHash  String? // null ได้ ถ้าสมัครผ่าน social login
   displayName   String?
+  provider      String   @default("local") // local | google | facebook
+  providerId    String? // id จากผู้ให้บริการ (Google sub / Facebook id)
+  avatarUrl     String?
   monthlyIncome Int      @default(0) // satang
   level         Int      @default(1)
   streak        Int      @default(0)

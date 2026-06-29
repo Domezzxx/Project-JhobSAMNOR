@@ -1,5 +1,7 @@
 # ✅ Sprint 1 — Foundation + Walking Skeleton
 
+> ✅ **Sprint 1 เสร็จแล้ว** และทีมทำต่อถึง Sprint 4 — ภาพรวมทุก sprint ดูที่ [SPRINT_STATUS.md](SPRINT_STATUS.md)
+
 **เป้า:** ผู้ใช้ register/login → กรอก transaction → เห็นบน dashboard ครบทั้ง 3 layer (พิสูจน์ว่าระบบต่อกันติด)
 
 ## สถานะใน scaffold นี้

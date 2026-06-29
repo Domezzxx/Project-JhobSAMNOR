@@ -1,5 +1,8 @@
 # 🗺️ แผน Sprint — AI Finance Coach "พี่เงิน"
 
+> ✅ **สถานะ (23 มิ.ย. 2569): Sprint 1–4 เสร็จแล้ว** + ทำเกินแผน (multimodal coach, UI redesign, budget/profile) · เหลือ Sprint 5–8
+> 📊 ความคืบหน้าละเอียด → [SPRINT_STATUS.md](SPRINT_STATUS.md) · 👥 งานทีมรอบนี้ (ต้า/แตงกวา) → [tasks/](tasks/)
+
 8 sprints × 2 สัปดาห์ = 16 สัปดาห์ · ทีม 3 คน (P1 Mobile · P2 Backend · P3 AI-ML)
 หลักการ: **ทุก sprint ต้อง demo ได้** + **เอาของยาก/เสี่ยงมาทำก่อน**
 

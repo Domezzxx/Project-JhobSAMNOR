@@ -21,4 +21,8 @@ export const env = {
   openaiApiKey: process.env.OPENAI_API_KEY,
   openaiModel: process.env.OPENAI_MODEL ?? 'gpt-3.5-turbo',
   openaiBaseUrl: process.env.OPENAI_BASE_URL, // custom OpenAI-compatible endpoint (optional)
+  // Social login — client id จาก Google Cloud / Facebook for Developers (ดู docs/SETUP_SOCIAL_LOGIN.md)
+  googleClientId: process.env.GOOGLE_CLIENT_ID, // ใส่หลาย id คั่นด้วย , ได้ (web/android/ios)
+  facebookAppId: process.env.FACEBOOK_APP_ID,
+  facebookAppSecret: process.env.FACEBOOK_APP_SECRET,
 };

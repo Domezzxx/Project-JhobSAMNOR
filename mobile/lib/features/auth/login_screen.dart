@@ -29,6 +29,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (ok && mounted) context.go('/');
   }
 
+  // ปุ่ม social — backend พร้อมแล้ว (/auth/google, /auth/facebook)
+  // เปิดใช้จริงเมื่อตั้งค่า OAuth + ใส่โค้ด google_sign_in/flutter_facebook_auth (ดู docs/SETUP_SOCIAL_LOGIN.md)
+  void _socialLogin(String provider) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('เข้าสู่ระบบด้วย $provider — ต้องตั้งค่า OAuth ก่อน (ดู docs/SETUP_SOCIAL_LOGIN.md)')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
@@ -70,6 +78,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('เข้าสู่ระบบ'),
               ),
+              const SizedBox(height: 20),
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('หรือ', style: TextStyle(color: AppColors.textMuted)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _SocialButton(
+                label: 'เข้าสู่ระบบด้วย Google',
+                badge: 'G',
+                color: const Color(0xFFDB4437),
+                onTap: () => _socialLogin('Google'),
+              ),
+              const SizedBox(height: 10),
+              _SocialButton(
+                label: 'เข้าสู่ระบบด้วย Facebook',
+                badge: 'f',
+                color: const Color(0xFF1877F2),
+                onTap: () => _socialLogin('Facebook'),
+              ),
               const SizedBox(height: 12),
               Center(
                 child: TextButton(
@@ -80,6 +113,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  const _SocialButton({required this.label, required this.badge, required this.color, required this.onTap});
+  final String label;
+  final String badge;
+  final Color color;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(50),
+          side: const BorderSide(color: Color(0xFFE7E9F3)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          foregroundColor: AppColors.textDark,
+        ),
+        icon: CircleAvatar(
+          radius: 11,
+          backgroundColor: color,
+          child: Text(badge,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+        ),
+        label: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       ),
     );
   }

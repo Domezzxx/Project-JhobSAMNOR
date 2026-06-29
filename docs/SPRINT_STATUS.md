@@ -1,6 +1,6 @@
 # 📊 Sprint Status — AI Finance Coach "พี่เงิน"
 
-> อัปเดต: 23 มิ.ย. 2569 · branch `feature/sprint4-ai-coach` (commit 0512591) · master = 524d277
+> อัปเดต: 23 มิ.ย. 2569 · branch `feature/sprint4-ai-coach` (commit 0512591) · main = 524d277
 
 **ภาพรวม:** Sprint 1–4 เสร็จครบ ✅ + ทำเกินแผนหลายอย่าง (multimodal coach, UI redesign, profile/budget). เหลือ Sprint 5–8
 
@@ -67,6 +67,6 @@
 ## 🔧 Cross-cutting ที่ค้าง
 - [ ] รันบนมือถือจริง — เทส permission เสียง/กล้อง (Expo/Flutter device)
 - [ ] CI/CD + deploy staging (Railway/Render)
-- [ ] เปิด PR `feature/sprint4-ai-coach` → `master`
+- [ ] เปิด PR `feature/sprint4-ai-coach` → `main`
 - [ ] 🔑 rotate Typhoon key (เคยโผล่ใน log ระหว่าง dev)
 - [ ] ลง Redis จริง (ตอนนี้ใช้ in-memory fallback) ตอนขึ้น prod
