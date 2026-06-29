@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// override ตอนรัน: flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000
 const String kApiBaseUrl =
@@ -15,9 +17,28 @@ class TokenStore {
   final FlutterSecureStorage _storage;
   static const _key = 'auth_token';
 
-  Future<String?> read() => _storage.read(key: _key);
-  Future<void> write(String token) => _storage.write(key: _key, value: token);
-  Future<void> clear() => _storage.delete(key: _key);
+  // เว็บที่เปิดผ่าน http (LAN IP) ใช้ flutter_secure_storage ไม่ได้ — WebCrypto ต้อง secure context
+  // → เว็บใช้ shared_preferences (localStorage), มือถือ/เดสก์ท็อปใช้ secure storage เหมือนเดิม
+  Future<String?> read() async {
+    if (kIsWeb) return (await SharedPreferences.getInstance()).getString(_key);
+    return _storage.read(key: _key);
+  }
+
+  Future<void> write(String token) async {
+    if (kIsWeb) {
+      await (await SharedPreferences.getInstance()).setString(_key, token);
+      return;
+    }
+    await _storage.write(key: _key, value: token);
+  }
+
+  Future<void> clear() async {
+    if (kIsWeb) {
+      await (await SharedPreferences.getInstance()).remove(_key);
+      return;
+    }
+    await _storage.delete(key: _key);
+  }
 }
 
 final tokenStoreProvider =

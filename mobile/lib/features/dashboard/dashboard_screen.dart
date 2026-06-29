@@ -9,6 +9,26 @@ import '../auth/auth_controller.dart';
 import '../transactions/transaction.dart';
 import '../transactions/transactions_repository.dart';
 
+// ตัวเลื่อนช่วงเวลา (หน่วย = period ที่เลือก, 0 = ปัจจุบัน, ติดลบ = ย้อนหลัง)
+final dashboardOffsetProvider = StateProvider.autoDispose<int>((_) => 0);
+
+// การเรียงลำดับรายการในช่วงเวลา
+enum TxnSort { dateDesc, dateAsc, amountDesc, amountAsc }
+
+const _sortLabels = {
+  TxnSort.dateDesc: 'วันที่ ใหม่→เก่า',
+  TxnSort.dateAsc: 'วันที่ เก่า→ใหม่',
+  TxnSort.amountDesc: 'ยอด มาก→น้อย',
+  TxnSort.amountAsc: 'ยอด น้อย→มาก',
+};
+
+final dashboardSortProvider = StateProvider.autoDispose<TxnSort>((_) => TxnSort.dateDesc);
+
+const _thaiMonths = [
+  '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -17,6 +37,8 @@ class DashboardScreen extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).user;
     final dashboard = ref.watch(dashboardProvider);
     final period = ref.watch(dashboardPeriodProvider);
+    final offset = ref.watch(dashboardOffsetProvider);
+    final sort = ref.watch(dashboardSortProvider);
 
     return Scaffold(
       body: Column(
@@ -47,28 +69,44 @@ class DashboardScreen extends ConsumerWidget {
                 data: (d) {
                   final now = DateTime.now();
 
-                  // Calculate date range based on selection
+                  // คำนวณช่วงวันที่ตาม period + offset (เลื่อนย้อน/ถัดไป)
                   DateTime start;
                   DateTime end;
+                  String windowLabel;
 
                   if (period == DashboardPeriod.day) {
-                    start = DateTime(now.year, now.month, now.day);
-                    end = start.add(const Duration(days: 1));
+                    final base = DateTime(now.year, now.month, now.day + offset);
+                    start = base;
+                    end = base.add(const Duration(days: 1));
+                    windowLabel = '${base.day} ${_thaiMonths[base.month]} ${base.year + 543}';
                   } else if (period == DashboardPeriod.week) {
-                    final day = now.weekday; // 1 is Monday, 7 is Sunday
-                    start = DateTime(now.year, now.month, now.day - (day - 1));
-                    end = start.add(const Duration(days: 7));
+                    final monday =
+                        DateTime(now.year, now.month, now.day - (now.weekday - 1) + offset * 7);
+                    start = monday;
+                    end = monday.add(const Duration(days: 7));
+                    final sun = monday.add(const Duration(days: 6));
+                    windowLabel =
+                        '${monday.day} ${_thaiMonths[monday.month]} – ${sun.day} ${_thaiMonths[sun.month]}';
                   } else {
-                    // month
-                    start = DateTime(now.year, now.month, 1);
-                    end = DateTime(now.year, now.month + 1, 1);
+                    final base = DateTime(now.year, now.month + offset, 1);
+                    start = base;
+                    end = DateTime(base.year, base.month + 1, 1);
+                    windowLabel = '${_thaiMonths[base.month]} ${base.year + 543}';
                   }
 
                   // Filter transactions in range
                   final filteredTxns = d.items.where((t) {
-                    return t.occurredAt.isAfter(start.subtract(const Duration(seconds: 1))) && 
+                    return t.occurredAt.isAfter(start.subtract(const Duration(seconds: 1))) &&
                            t.occurredAt.isBefore(end);
                   }).toList();
+
+                  // เรียงลำดับตามที่เลือก (มีผลกับลิสต์ที่แสดง)
+                  filteredTxns.sort(switch (sort) {
+                    TxnSort.dateDesc => (a, b) => b.occurredAt.compareTo(a.occurredAt),
+                    TxnSort.dateAsc => (a, b) => a.occurredAt.compareTo(b.occurredAt),
+                    TxnSort.amountDesc => (a, b) => b.amount.compareTo(a.amount),
+                    TxnSort.amountAsc => (a, b) => a.amount.compareTo(b.amount),
+                  });
 
                   // Calculate income, expense, and balance
                   int periodIncome = 0;
@@ -97,10 +135,6 @@ class DashboardScreen extends ConsumerWidget {
                   final sortedCategories = categorySums.values.toList()
                     ..sort((a, b) => b.amount.compareTo(a.amount));
 
-                  String periodLabel = 'คงเหลือเดือนนี้';
-                  if (period == DashboardPeriod.day) periodLabel = 'คงเหลือวันนี้';
-                  if (period == DashboardPeriod.week) periodLabel = 'คงเหลือสัปดาห์นี้';
-
                   return Column(
                     children: [
                       // 1. Period Selector Toggle
@@ -117,7 +151,35 @@ class DashboardScreen extends ConsumerWidget {
                             ButtonSegment(value: DashboardPeriod.month, label: Text('เดือน')),
                           ],
                           selected: {period},
-                          onSelectionChanged: (s) => ref.read(dashboardPeriodProvider.notifier).state = s.first,
+                          onSelectionChanged: (s) {
+                            ref.read(dashboardOffsetProvider.notifier).state = 0;
+                            ref.read(dashboardPeriodProvider.notifier).state = s.first;
+                          },
+                        ),
+                      ),
+                      // 1b. ตัวเลื่อนช่วงเวลา ‹ เดือน/วัน/สัปดาห์ › — ดูข้อมูลจริงย้อนหลังได้
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              onPressed: () =>
+                                  ref.read(dashboardOffsetProvider.notifier).state = offset - 1,
+                              icon: const Icon(Icons.chevron_left_rounded),
+                              tooltip: 'ย้อนหลัง',
+                            ),
+                            Text(windowLabel,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textDark)),
+                            IconButton(
+                              onPressed: offset >= 0
+                                  ? null
+                                  : () => ref.read(dashboardOffsetProvider.notifier).state = offset + 1,
+                              icon: const Icon(Icons.chevron_right_rounded),
+                              tooltip: 'ถัดไป',
+                            ),
+                          ],
                         ),
                       ),
                       // 2. Balance Card (Cash-Flow)
@@ -125,7 +187,7 @@ class DashboardScreen extends ConsumerWidget {
                         balance: periodBalance,
                         income: periodIncome,
                         expense: periodExpense,
-                        periodLabel: periodLabel,
+                        periodLabel: 'คงเหลือ · $windowLabel',
                       ),
                       const SizedBox(height: 16),
                       // 3. Category Pie Chart
@@ -139,11 +201,29 @@ class DashboardScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       const _CoachTeaser(),
                       const SizedBox(height: 24),
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.receipt_long_rounded, size: 18, color: AppColors.primary),
-                          SizedBox(width: 6),
-                          Text('รายการในช่วงเวลา', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Icon(Icons.receipt_long_rounded, size: 18, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          const Text('รายการในช่วงเวลา',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Spacer(),
+                          PopupMenuButton<TxnSort>(
+                            icon: const Icon(Icons.sort_rounded, size: 20, color: AppColors.textMuted),
+                            tooltip: 'เรียงลำดับ: ${_sortLabels[sort]}',
+                            onSelected: (v) => ref.read(dashboardSortProvider.notifier).state = v,
+                            itemBuilder: (_) => TxnSort.values
+                                .map((s) => CheckedPopupMenuItem(
+                                      value: s,
+                                      checked: s == sort,
+                                      child: Text(_sortLabels[s]!),
+                                    ))
+                                .toList(),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push('/transactions'),
+                            child: const Text('ดูทั้งหมด'),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
