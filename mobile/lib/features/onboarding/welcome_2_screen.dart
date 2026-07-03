@@ -78,7 +78,7 @@ class _Welcome2ScreenState extends ConsumerState<Welcome2Screen>
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(28.0),
+                      padding: const EdgeInsets.all(12.0),
                       child: Image.asset(
                         'assets/images/logo.png',
                         fit: BoxFit.contain,
