@@ -75,11 +75,10 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
                         ),
                       ],
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
+                    child: ClipOval(
                       child: Image.asset(
                         'assets/images/logo.png',
-                        fit: BoxFit.contain,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
