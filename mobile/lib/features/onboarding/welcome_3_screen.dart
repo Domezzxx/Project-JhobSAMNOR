@@ -60,14 +60,6 @@ class _Welcome3ScreenState extends ConsumerState<Welcome3Screen>
                     height: 220,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppColors.income.withOpacity(0.18),
-                          AppColors.income.withOpacity(0.04),
-                        ],
-                      ),
-                      border: Border.all(
-                          color: AppColors.income.withOpacity(0.35), width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.income.withOpacity(0.28),

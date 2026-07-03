@@ -59,14 +59,6 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
                     height: 220,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppColors.primary.withOpacity(0.18),
-                          AppColors.primary.withOpacity(0.04),
-                        ],
-                      ),
-                      border: Border.all(
-                          color: AppColors.primary.withOpacity(0.35), width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.primary.withOpacity(0.28),
