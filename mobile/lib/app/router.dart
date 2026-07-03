@@ -11,6 +11,10 @@ import '../features/profile/profile_screen.dart';
 import '../features/goals/goals_screen.dart';
 import '../features/goals/edit_goal_screen.dart';
 import '../features/goals/deposit_goal_screen.dart';
+import '../features/budgets/budget_list_screen.dart';
+import '../features/budgets/budget_edit_screen.dart';
+import '../features/budgets/budget_amount_screen.dart';
+import '../features/budgets/budget_duration_screen.dart';
 import '../features/onboarding/welcome_1_screen.dart';
 import '../features/onboarding/welcome_2_screen.dart';
 import '../features/onboarding/welcome_3_screen.dart';
@@ -63,7 +67,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             AddTransactionScreen(transaction: state.extra as Txn?),
       ),
       GoRoute(path: '/chat', builder: (_, __) => const ChatScreen()),
-      GoRoute(path: '/budgets', builder: (_, __) => const BudgetScreen()),
+      GoRoute(path: '/budgets', builder: (_, __) => const BudgetListScreen()),
+      GoRoute(
+        path: '/budgets/edit',
+        builder: (context, state) => BudgetEditScreen(status: state.extra as BudgetStatus),
+      ),
+      GoRoute(path: '/budgets/amount', builder: (_, __) => const BudgetAmountScreen()),
+      GoRoute(path: '/budgets/duration', builder: (_, __) => const BudgetDurationScreen()),
       GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
       GoRoute(path: '/goals', builder: (_, __) => const GoalsScreen()),
       GoRoute(path: '/goals/add', builder: (_, __) => const EditGoalScreen()),

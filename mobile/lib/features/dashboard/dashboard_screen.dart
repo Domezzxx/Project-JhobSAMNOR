@@ -716,33 +716,3 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Budget Screen (แยก route)
-// ─────────────────────────────────────────────────────────────────────────────
-class BudgetScreen extends StatelessWidget {
-  const BudgetScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1C1C1C),
-        title: const Text('งบประมาณ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: ListView(
-        padding: EdgeInsets.all(16),
-        children: [
-          _BudgetsCard(),
-          SizedBox(height: 16),
-          Text(
-            '💡 ตั้งงบรายหมวด แล้วพี่เงินจะเตือนเมื่อใกล้/เกินงบให้อัตโนมัติ',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
