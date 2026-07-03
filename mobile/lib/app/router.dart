@@ -1,10 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-/// Set เป็น true หลังจากผ่าน Welcome3 แล้วกด "เริ่มต้นใช้งาน"
-/// ใช้ควบคุม redirect ไม่ให้ข้าม Login page เมื่อมี token เดิมค้างอยู่
-final onboardingDoneProvider = StateProvider<bool>((ref) => false);
-
 import '../features/auth/auth_controller.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -19,6 +14,10 @@ import '../features/goals/deposit_goal_screen.dart';
 import '../features/onboarding/welcome_1_screen.dart';
 import '../features/onboarding/welcome_2_screen.dart';
 import '../features/onboarding/welcome_3_screen.dart';
+
+/// Set เป็น true หลังจากผ่าน Welcome3 แล้วกด "เริ่มต้นใช้งาน"
+/// ใช้ควบคุม redirect ไม่ให้ข้าม Login page เมื่อมี token เดิมค้างอยู่
+final onboardingDoneProvider = StateProvider<bool>((ref) => false);
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(

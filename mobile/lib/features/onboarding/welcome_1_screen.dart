@@ -27,7 +27,7 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
     _scaleAnim = Tween<double>(begin: 0.7, end: 1.0)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
     _slideAnim = Tween<Offset>(
-            begin: const Offset(0, 0.3), end: Offset.zero)
+            begin: const Offset(0, 0.2), end: Offset.zero)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _ctrl.forward();
   }
@@ -47,83 +47,77 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             children: [
+              const SizedBox(height: 48),
+
+              // ── Header: ผู้ช่วยทางการเงิน (เหมือนกันทุกหน้าตาม Mockup) ──
+              FadeTransition(
+                opacity: _fadeAnim,
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: const TextSpan(
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
+                    children: [
+                      TextSpan(
+                          text: 'ผู้ช่วย',
+                          style: TextStyle(color: Colors.white)),
+                      TextSpan(
+                          text: 'ทางการเงิน',
+                          style: TextStyle(color: AppColors.primary)),
+                    ],
+                  ),
+                ),
+              ),
+
               const Spacer(flex: 2),
 
-              // ── Animated icon ──────────────────────────────────
+              // ── โลโก้ขนาดใหญ่ 280x280 ตรงกลาง ──
               ScaleTransition(
                 scale: _scaleAnim,
                 child: FadeTransition(
                   opacity: _fadeAnim,
                   child: Container(
-                    width: 220,
-                    height: 220,
+                    width: 280,
+                    height: 280,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppColors.primary.withOpacity(0.18),
-                          AppColors.primary.withOpacity(0.04),
-                        ],
-                      ),
-                      border: Border.all(
-                          color: AppColors.primary.withOpacity(0.35), width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.28),
-                          blurRadius: 48,
-                          spreadRadius: 8,
+                          color: AppColors.primary.withOpacity(0.25),
+                          blurRadius: 50,
+                          spreadRadius: 6,
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.savings_rounded,
-                      size: 90,
-                      color: AppColors.primary,
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 52),
+              const Spacer(flex: 2),
 
-              // ── Page indicator ─────────────────────────────────
-              const WelcomeDots(current: 0, total: 3),
-
-              const SizedBox(height: 36),
-
-              // ── Text ───────────────────────────────────────────
+              // ── ส่วนข้อความอธิบายด้านล่าง ──
               SlideTransition(
                 position: _slideAnim,
                 child: FadeTransition(
                   opacity: _fadeAnim,
                   child: Column(
                     children: [
-                      RichText(
-                        textAlign: TextAlign.center,
-                        text: const TextSpan(
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            fontFamily: 'Outfit',
-                          ),
-                          children: [
-                            TextSpan(
-                                text: 'ผู้ช่วย',
-                                style: TextStyle(color: Colors.white)),
-                            TextSpan(
-                                text: 'ทางการเงิน',
-                                style: TextStyle(color: AppColors.primary)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
+                      const Text(
                         'การช่วยการจัดการเงินของคุณ',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary.withOpacity(0.8),
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -141,9 +135,9 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
                 ),
               ),
 
-              const Spacer(flex: 3),
+              const Spacer(flex: 2),
 
-              // ── Buttons ────────────────────────────────────────
+              // ── ปุ่มนำทางด้านล่างสุด ──
               FadeTransition(
                 opacity: _fadeAnim,
                 child: Column(
@@ -178,35 +172,6 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
           ),
         ),
       ),
-    );
-  }
-}
-
-// ── Shared dot indicator (exported for use in Welcome 2 & 3) ─────────────────
-class WelcomeDots extends StatelessWidget {
-  const WelcomeDots({super.key, required this.current, required this.total});
-  final int current;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(total, (i) {
-        final active = i == current;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: active ? 28 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            color: active
-                ? AppColors.primary
-                : AppColors.textMuted.withOpacity(0.3),
-          ),
-        );
-      }),
     );
   }
 }
