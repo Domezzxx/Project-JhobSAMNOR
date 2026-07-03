@@ -20,7 +20,7 @@ class DashboardScreen extends ConsumerWidget {
     final dashboard = ref.watch(dashboardProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B0F),
+      backgroundColor: const Color(0xFF121212),
       body: Column(
         children: [
           // ── Header ─────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ class _GreenHeader extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20, topPad + 14, 20, 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF1A3A1A), Color(0xFF0D2B10)],
+          colors: [Color(0xFF06120A), Color(0xFF334E3D), Color(0xFF3CAE63)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -218,7 +218,11 @@ class _BalanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2B1A),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF010C0C), Color(0xFF3CAE63)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
@@ -297,7 +301,7 @@ class _GoalsCard extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF3D2B00), Color(0xFF5A3E00)],
+          colors: [Color(0xFF262626), Color(0xFF907116), Color(0xFFFBBC05)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
@@ -366,7 +370,11 @@ class _BudgetsCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2B1A),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF010F0C), Color(0xFF061E13)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
@@ -520,7 +528,7 @@ class _RecentTxnCards extends StatelessWidget {
             width: 110,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2B1A),
+              color: const Color(0xFF1C1C1C),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
@@ -581,7 +589,7 @@ class _QuickActionsGrid extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2B1A),
+        color: const Color(0xFF1C1C1C),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
@@ -655,7 +663,7 @@ class _DashboardNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: const Color(0xFF0D1B0F),
+      color: const Color(0xFF121212),
       elevation: 12,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
@@ -717,9 +725,9 @@ class BudgetScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B0F),
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A2B1A),
+        backgroundColor: const Color(0xFF1C1C1C),
         title: const Text('งบประมาณ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
