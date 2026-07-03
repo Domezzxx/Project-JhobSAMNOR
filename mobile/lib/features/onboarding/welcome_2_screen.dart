@@ -77,10 +77,12 @@ class _Welcome2ScreenState extends ConsumerState<Welcome2Screen>
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.bar_chart_rounded,
-                      size: 90,
-                      color: accentColor,
+                    child: Padding(
+                      padding: const EdgeInsets.all(28.0),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),

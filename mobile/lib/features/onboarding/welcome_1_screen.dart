@@ -75,10 +75,12 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.savings_rounded,
-                      size: 90,
-                      color: AppColors.primary,
+                    child: Padding(
+                      padding: const EdgeInsets.all(28.0),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),

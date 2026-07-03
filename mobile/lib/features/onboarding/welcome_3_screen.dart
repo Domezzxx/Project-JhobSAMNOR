@@ -76,10 +76,12 @@ class _Welcome3ScreenState extends ConsumerState<Welcome3Screen>
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.qr_code_scanner_rounded,
-                      size: 90,
-                      color: AppColors.income,
+                    child: Padding(
+                      padding: const EdgeInsets.all(28.0),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
