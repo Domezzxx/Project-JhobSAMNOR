@@ -55,8 +55,8 @@ class _Welcome1ScreenState extends ConsumerState<Welcome1Screen>
                 child: FadeTransition(
                   opacity: _fadeAnim,
                   child: Container(
-                    width: 220,
-                    height: 220,
+                    width: 260,
+                    height: 260,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       boxShadow: [
