@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:fl_chart/fl_chart.dart';
 
 import '../../app/theme.dart';
 import '../../core/money.dart';
@@ -9,6 +8,9 @@ import '../auth/auth_controller.dart';
 import '../transactions/transaction.dart';
 import '../transactions/transactions_repository.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Dashboard Screen (Main)
+// ─────────────────────────────────────────────────────────────────────────────
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -16,17 +18,20 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
     final dashboard = ref.watch(dashboardProvider);
-    final period = ref.watch(dashboardPeriodProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFF121212),
       body: Column(
         children: [
-          _GradientHeader(
+          // ── Header ─────────────────────────────────────────────────────────
+          _GreenHeader(
             name: user?.displayName ?? 'เพื่อน',
             streak: user?.streak ?? 0,
           ),
+          // ── Scrollable content ─────────────────────────────────────────────
           Expanded(
             child: RefreshIndicator(
+              color: AppColors.primary,
               onRefresh: () async {
                 await ref.read(transactionsRepoProvider).syncPending();
                 ref.invalidate(dashboardProvider);
@@ -34,131 +39,62 @@ class DashboardScreen extends ConsumerWidget {
                 await ref.read(dashboardProvider.future);
               },
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                 children: [
-                  const _QuickActions(),
-                  const SizedBox(height: 16),
-              dashboard.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => _ErrorBox(message: '$e', onRetry: () => ref.invalidate(dashboardProvider)),
-                data: (d) {
-                  final now = DateTime.now();
+                  dashboard.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    ),
+                    error: (e, _) => _ErrorBox(
+                      message: '$e',
+                      onRetry: () => ref.invalidate(dashboardProvider),
+                    ),
+                    data: (d) {
+                      // Calculate totals
+                      int totalIncome = 0;
+                      int totalExpense = 0;
+                      for (final t in d.items) {
+                        if (t.type == 'income') {
+                          totalIncome += t.amount;
+                        } else {
+                          totalExpense += t.amount;
+                        }
+                      }
+                      final balance = totalIncome - totalExpense;
 
-                  // Calculate date range based on selection
-                  DateTime start;
-                  DateTime end;
-
-                  if (period == DashboardPeriod.day) {
-                    start = DateTime(now.year, now.month, now.day);
-                    end = start.add(const Duration(days: 1));
-                  } else if (period == DashboardPeriod.week) {
-                    final day = now.weekday; // 1 is Monday, 7 is Sunday
-                    start = DateTime(now.year, now.month, now.day - (day - 1));
-                    end = start.add(const Duration(days: 7));
-                  } else {
-                    // month
-                    start = DateTime(now.year, now.month, 1);
-                    end = DateTime(now.year, now.month + 1, 1);
-                  }
-
-                  // Filter transactions in range
-                  final filteredTxns = d.items.where((t) {
-                    return t.occurredAt.isAfter(start.subtract(const Duration(seconds: 1))) && 
-                           t.occurredAt.isBefore(end);
-                  }).toList();
-
-                  // Calculate income, expense, and balance
-                  int periodIncome = 0;
-                  int periodExpense = 0;
-                  for (final t in filteredTxns) {
-                    if (t.type == 'income') {
-                      periodIncome += t.amount;
-                    } else {
-                      periodExpense += t.amount;
-                    }
-                  }
-                  final periodBalance = periodIncome - periodExpense;
-
-                  // Group expenses by category
-                  final expenseTxns = filteredTxns.where((t) => t.type == 'expense');
-                  final Map<String, ({Category? category, int amount})> categorySums = {};
-                  for (final t in expenseTxns) {
-                    final catId = t.category?.id ?? 'other';
-                    if (!categorySums.containsKey(catId)) {
-                      categorySums[catId] = (category: t.category, amount: 0);
-                    }
-                    final existingVal = categorySums[catId]!;
-                    categorySums[catId] = (category: existingVal.category, amount: existingVal.amount + t.amount);
-                  }
-
-                  final sortedCategories = categorySums.values.toList()
-                    ..sort((a, b) => b.amount.compareTo(a.amount));
-
-                  String periodLabel = 'คงเหลือเดือนนี้';
-                  if (period == DashboardPeriod.day) periodLabel = 'คงเหลือวันนี้';
-                  if (period == DashboardPeriod.week) periodLabel = 'คงเหลือสัปดาห์นี้';
-
-                  return Column(
-                    children: [
-                      // 1. Period Selector Toggle
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: SegmentedButton<DashboardPeriod>(
-                          style: const ButtonStyle(
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          segments: const [
-                            ButtonSegment(value: DashboardPeriod.day, label: Text('วัน')),
-                            ButtonSegment(value: DashboardPeriod.week, label: Text('สัปดาห์')),
-                            ButtonSegment(value: DashboardPeriod.month, label: Text('เดือน')),
-                          ],
-                          selected: {period},
-                          onSelectionChanged: (s) => ref.read(dashboardPeriodProvider.notifier).state = s.first,
-                        ),
-                      ),
-                      // 2. Balance Card (Cash-Flow)
-                      _BalanceCard(
-                        balance: periodBalance,
-                        income: periodIncome,
-                        expense: periodExpense,
-                        periodLabel: periodLabel,
-                      ),
-                      const SizedBox(height: 16),
-                      // 3. Category Pie Chart
-                      _CategoryPieChart(
-                        categorySums: sortedCategories,
-                        totalExpense: periodExpense,
-                      ),
-                      const SizedBox(height: 16),
-                      // 4. Budgets Section
-                      const _BudgetsProgressSection(),
-                      const SizedBox(height: 16),
-                      const _CoachTeaser(),
-                      const SizedBox(height: 24),
-                      const Row(
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.receipt_long_rounded, size: 18, color: AppColors.primary),
-                          SizedBox(width: 6),
-                          Text('รายการในช่วงเวลา', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          // 1. Balance Card
+                          _BalanceCard(
+                            balance: balance,
+                            income: totalIncome,
+                            expense: totalExpense,
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 2. Goals Card
+                          const _GoalsCard(),
+                          const SizedBox(height: 12),
+
+                          // 3. Budgets Card
+                          const _BudgetsCard(),
+                          const SizedBox(height: 12),
+
+                          // 4. Recent Transactions (horizontal scroll)
+                          if (d.items.isNotEmpty) ...[
+                            _RecentTxnCards(txns: d.items.take(6).toList()),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // 5. Quick Actions Grid
+                          const _QuickActionsGrid(),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (filteredTxns.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text('ไม่มีรายการในช่วงเวลานี้', style: TextStyle(color: AppColors.textMuted)),
-                        )
-                      else
-                        ...filteredTxns.take(15).map((t) => _TxnTile(txn: t)),
-                    ],
-                  );
-                },
-              ),
-            ],
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -172,7 +108,7 @@ class DashboardScreen extends ConsumerWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
-        elevation: 4,
+        elevation: 6,
         child: const Icon(Icons.add, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -181,42 +117,149 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Header (Green gradient top bar — style matches mockup)
+// ─────────────────────────────────────────────────────────────────────────────
+class _GreenHeader extends StatelessWidget {
+  const _GreenHeader({required this.name, required this.streak});
+  final String name;
+  final int streak;
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, topPad + 14, 20, 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF06120A), Color(0xFF334E3D), Color(0xFF3CAE63)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(0),
+          bottomRight: Radius.circular(0),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey.shade700,
+              border: Border.all(color: AppColors.primary.withOpacity(0.5), width: 2),
+            ),
+            child: const Icon(Icons.person, color: Colors.white70, size: 26),
+          ),
+          const SizedBox(width: 12),
+          // Name + Streak badge
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    'ใช้งานต่อเนื่อง $streak วัน',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Notification bell
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 26),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Balance Card
+// ─────────────────────────────────────────────────────────────────────────────
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
     required this.balance,
     required this.income,
     required this.expense,
-    required this.periodLabel,
   });
-  
   final int balance;
   final int income;
   final int expense;
-  final String periodLabel;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: kBalanceGradient,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(color: AppColors.primary.withOpacity(0.35), blurRadius: 28, offset: const Offset(0, 14)),
-        ],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF010C0C), Color(0xFF3CAE63)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(periodLabel, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 4),
-          Text(Money.formatBaht(balance),
-              style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: _MiniStat(label: 'รายรับ', value: income)),
-              Expanded(child: _MiniStat(label: 'รายจ่าย', value: expense)),
+              const Text(
+                'ยอดคงเหลือ',
+                style: TextStyle(color: Colors.white60, fontSize: 13),
+              ),
+              Icon(Icons.edit_outlined, size: 16, color: Colors.white38),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${Money.formatBaht(balance)} ฿',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _MiniStatRow(label: 'รายรับ', value: income, color: AppColors.income),
+                  const SizedBox(height: 4),
+                  _MiniStatRow(label: 'รายจ่าย', value: expense, color: AppColors.expense),
+                ],
+              ),
             ],
           ),
         ],
@@ -225,136 +268,87 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value});
+class _MiniStatRow extends StatelessWidget {
+  const _MiniStatRow({required this.label, required this.value, required this.color});
   final String label;
   final int value;
+  final Color color;
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        Text(Money.formatBaht(value),
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+        Text('$label  ', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Text(
+          '${Money.formatBaht(value)} ฿',
+          style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }
 }
 
-class _CategoryPieChart extends StatelessWidget {
-  const _CategoryPieChart({
-    required this.categorySums,
-    required this.totalExpense,
-  });
-
-  final List<({Category? category, int amount})> categorySums;
-  final int totalExpense;
-
-  List<PieChartSectionData> getSections() {
-    return categorySums.map((item) {
-      final cat = item.category;
-      final color = cat != null ? hexColor(cat.color) : const Color(0xFF8E9AA6);
-      final percentage = totalExpense > 0 ? (item.amount / totalExpense) * 100 : 0.0;
-      
-      return PieChartSectionData(
-        color: color,
-        value: item.amount.toDouble(),
-        title: percentage >= 10 ? '${percentage.toStringAsFixed(0)}%' : '',
-        radius: 35,
-        titleStyle: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      );
-    }).toList();
-  }
-
-  List<PieChartSectionData> getPlaceholderSections() {
-    return [
-      PieChartSectionData(
-        color: Colors.grey.shade200,
-        value: 100,
-        title: 'ไม่มีรายจ่าย',
-        radius: 35,
-        titleStyle: TextStyle(
-          color: Colors.grey.shade500,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      )
-    ];
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// Goals Card (mock data — จะเชื่อมต่อ API จริงใน Sprint ถัดไป)
+// ─────────────────────────────────────────────────────────────────────────────
+class _GoalsCard extends ConsumerWidget {
+  const _GoalsCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Use real goals data if available
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: softCard(),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF262626), Color(0xFF907116), Color(0xFFFBBC05)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.amber.withOpacity(0.2)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('สัดส่วนรายจ่าย', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-          const SizedBox(height: 12),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(
-                height: 100,
-                width: 100,
-                child: PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 18,
-                    sections: totalExpense > 0 ? getSections() : getPlaceholderSections(),
-                  ),
-                ),
+              const Text(
+                'เป้าหมาย',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: totalExpense > 0
-                      ? categorySums.take(4).map((item) {
-                          final cat = item.category;
-                          final color = cat != null ? hexColor(cat.color) : const Color(0xFF8E9AA6);
-                          final percentage = (item.amount / totalExpense) * 100;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(cat?.icon ?? '💸', style: const TextStyle(fontSize: 12)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    cat?.nameTh ?? 'อื่นๆ',
-                                    style: const TextStyle(fontSize: 12, color: AppColors.textDark),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Text(
-                                  '${percentage.toStringAsFixed(0)}%',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList()
-                      : [
-                          const Text(
-                            'ไม่มีประวัติการใช้จ่ายสำหรับช่วงนี้',
-                            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                          )
-                        ],
-                ),
+              GestureDetector(
+                onTap: () => context.push('/goals'),
+                child: Icon(Icons.edit_outlined, size: 16, color: Colors.white38),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('ซื้อตู้เย็น', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              Text('2,400 / 4000', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: 2400 / 4000,
+              minHeight: 8,
+              backgroundColor: Colors.white.withOpacity(0.15),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFC107)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'เหลืออีก 1600 บาท',
+              style: TextStyle(color: Colors.amber, fontSize: 11),
+            ),
           ),
         ],
       ),
@@ -362,8 +356,11 @@ class _CategoryPieChart extends StatelessWidget {
   }
 }
 
-class _BudgetsProgressSection extends ConsumerWidget {
-  const _BudgetsProgressSection();
+// ─────────────────────────────────────────────────────────────────────────────
+// Budgets Card (status badges: อันตราย / เสี่ยง / ปลอดภัย)
+// ─────────────────────────────────────────────────────────────────────────────
+class _BudgetsCard extends ConsumerWidget {
+  const _BudgetsCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -372,34 +369,36 @@ class _BudgetsProgressSection extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: softCard(),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF010F0C), Color(0xFF061E13)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('งบประมาณ', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.settings, size: 18, color: AppColors.primary),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('หน้าจัดการงบประมาณจะมาใน Sprint ถัดไป 💸')),
-                  );
-                },
+              const Text(
+                'งบประมาณ',
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
               ),
+              Icon(Icons.edit_outlined, size: 16, color: Colors.white38),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           budgetsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('โหลดงบไม่ได้: $e'),
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (e, _) => Text('โหลดงบไม่ได้: $e', style: const TextStyle(color: Colors.red)),
             data: (budgets) {
               if (budgets.isEmpty) {
                 return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
+                  padding: EdgeInsets.symmetric(vertical: 12),
                   child: Center(
                     child: Text(
                       'ยังไม่ได้ตั้งงบประมาณ — เริ่มใช้งานได้เลย',
@@ -408,88 +407,90 @@ class _BudgetsProgressSection extends ConsumerWidget {
                   ),
                 );
               }
-
               return Column(
                 children: budgetStatuses.map((status) {
+                  // Determine status level
+                  final pct = status.percentage;
+                  String statusLabel;
+                  Color statusColor;
+                  Color barColor;
+
+                  if (pct >= 1.0) {
+                    statusLabel = 'อันตราย';
+                    statusColor = AppColors.expense;
+                    barColor = AppColors.expense;
+                  } else if (pct >= 0.8) {
+                    statusLabel = 'เสี่ยง';
+                    statusColor = Colors.orange;
+                    barColor = Colors.orange;
+                  } else {
+                    statusLabel = 'ปลอดภัย';
+                    statusColor = AppColors.income;
+                    barColor = AppColors.income;
+                  }
+
                   final cat = status.category;
-                  final isExceeded = status.isExceeded;
-                  final color = isExceeded ? AppColors.expense : AppColors.primary;
-                  final limitText = Money.formatBaht(status.amount);
-                  final spentText = Money.formatBaht(status.spent);
-                  
+                  final remaining = status.amount - status.spent;
+                  final overBy = status.spent - status.amount;
+
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.only(bottom: 14),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: cat != null ? hexColor(cat.color).withOpacity(0.15) : const Color(0xFFEFEFF5),
-                              child: Text(cat?.icon ?? '💸', style: const TextStyle(fontSize: 12)),
-                            ),
-                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                cat?.nameTh ?? 'งบรวมทั้งหมด',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textDark),
+                                cat?.nameTh ?? 'งบรวม',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
-                            if (isExceeded)
-                              Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.expense.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.warning, size: 10, color: AppColors.expense),
-                                    SizedBox(width: 2),
-                                    Text('เกินงบ! ⚠️', style: TextStyle(color: AppColors.expense, fontSize: 9, fontWeight: FontWeight.bold)),
-                                  ],
+                            // Status badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                statusLabel,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
+                            ),
+                            const SizedBox(width: 8),
                             Text(
-                              '$spentText / $limitText',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isExceeded ? AppColors.expense : AppColors.textDark,
-                              ),
+                              '฿ ${Money.formatBaht(status.spent)} / ${Money.formatBaht(status.amount)}',
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(6),
                           child: LinearProgressIndicator(
-                            value: status.percentage.clamp(0.0, 1.0),
-                            minHeight: 6,
-                            backgroundColor: Colors.grey.shade100,
-                            color: color,
+                            value: pct.clamp(0.0, 1.0),
+                            minHeight: 7,
+                            backgroundColor: Colors.white.withOpacity(0.12),
+                            valueColor: AlwaysStoppedAnimation<Color>(barColor),
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              status.period == 'weekly' ? 'รายสัปดาห์' : 'รายเดือน',
-                              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                            ),
-                            Text(
-                              isExceeded 
-                                  ? 'ใช้เกินงบไปแล้ว ${Money.formatBaht(status.spent - status.amount)}'
-                                  : 'เหลืออีก ${Money.formatBaht(status.amount - status.spent)}',
-                              style: TextStyle(
-                                fontSize: 10, 
-                                color: isExceeded ? AppColors.expense : AppColors.textMuted,
-                              ),
-                            ),
-                          ],
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            pct >= 1.0
+                                ? 'ใช้เกินไป ${Money.formatBaht(overBy)} บาท'
+                                : 'ใช้ได้อีก ${Money.formatBaht(remaining)} บาท',
+                            style: TextStyle(color: statusColor, fontSize: 11),
+                          ),
                         ),
                       ],
                     ),
@@ -504,353 +505,64 @@ class _BudgetsProgressSection extends ConsumerWidget {
   }
 }
 
-class _CoachTeaser extends StatelessWidget {
-  const _CoachTeaser();
+// ─────────────────────────────────────────────────────────────────────────────
+// Recent Transactions — horizontal scrollable cards
+// ─────────────────────────────────────────────────────────────────────────────
+class _RecentTxnCards extends StatelessWidget {
+  const _RecentTxnCards({required this.txns});
+  final List<Txn> txns;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEDEBFF), Color(0xFFF3ECFF)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: kCardShadow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => context.push('/chat'),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: const [
-                CircleAvatar(backgroundColor: Colors.white, child: Text('🤖')),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('คุยกับพี่เงิน · ที่ปรึกษาการเงิน AI',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textDark)),
-                      Text('ถามเรื่องออม/ลงทุน หรือส่งสลิป — แตะเพื่อเริ่มแชท 💬',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: AppColors.textMuted),
-              ],
+    return SizedBox(
+      height: 110,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: txns.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) {
+          final t = txns[i];
+          final cat = t.category;
+          return Container(
+            width: 110,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1C),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TxnTile extends ConsumerWidget {
-  const _TxnTile({required this.txn});
-  final Txn txn;
-
-  void _showOptions(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.edit, color: AppColors.primary),
-                title: const Text('แก้ไขรายการ'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await GoRouter.of(context).push('/add', extra: txn);
-                  ref.invalidate(dashboardProvider);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: AppColors.expense),
-                title: const Text('ลบรายการ', style: TextStyle(color: AppColors.expense)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('ยืนยันการลบ'),
-                      content: const Text('คุณต้องการลบรายการนี้ใช่หรือไม่?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('ยกเลิก'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('ลบ', style: TextStyle(color: AppColors.expense)),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirm == true) {
-                    try {
-                      await ref.read(transactionsRepoProvider).delete(txn.id);
-                      ref.invalidate(dashboardProvider);
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('ลบไม่สำเร็จ: $e')),
-                        );
-                      }
-                    }
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = txn.category;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      elevation: 2,
-      shadowColor: const Color(0x12000000),
-      surfaceTintColor: Colors.white,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _showOptions(context, ref),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: c != null ? hexColor(c.color).withOpacity(0.15) : const Color(0xFFEFEFF5),
-                child: Text(c?.icon ?? '💸'),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(c?.nameTh ?? (txn.isIncome ? 'รายรับ' : 'รายจ่าย'),
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    if (txn.note != null && txn.note!.isNotEmpty)
-                      Text(txn.note!, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                  ],
-                ),
-              ),
-              Text('${txn.isIncome ? '+' : '-'}${Money.formatBaht(txn.amount)}',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: txn.isIncome ? AppColors.income : AppColors.expense)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const SizedBox(height: 20),
-        const Text('โหลดข้อมูลไม่ได้ 😢'),
-        const SizedBox(height: 4),
-        Text(message,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 12), textAlign: TextAlign.center),
-        const SizedBox(height: 12),
-        OutlinedButton(onPressed: onRetry, child: const Text('ลองใหม่')),
-        const SizedBox(height: 8),
-        const Text('ตรวจว่า backend รันที่ API_BASE_URL หรือยัง',
-            style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
-      ],
-    );
-  }
-}
-
-/// Header เต็มความกว้าง gradient + ภาพประกอบมุมขวา (สไตล์ fintech)
-class _GradientHeader extends StatelessWidget {
-  const _GradientHeader({required this.name, required this.streak});
-  final String name;
-  final int streak;
-
-  @override
-  Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, topPad + 18, 20, 26),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF8273F2), Color(0xFF6C5CE7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
-        boxShadow: [BoxShadow(color: Color(0x336C5CE7), blurRadius: 20, offset: Offset(0, 8))],
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Positioned(right: 0, top: 2, child: _HeaderArt()),
-          Padding(
-            padding: const EdgeInsets.only(right: 96),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('สวัสดี $name 👋',
-                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 2),
-                const Text('มาดูภาพรวมการเงินกันเถอะ',
-                    style: TextStyle(color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.22),
-                    borderRadius: BorderRadius.circular(20),
+                    color: AppColors.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text('🔥 streak $streak วัน',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+                  child: Center(
+                    child: Text(cat?.icon ?? (t.isIncome ? '💰' : '💸'),
+                        style: const TextStyle(fontSize: 18)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '฿ ${Money.formatBaht(t.amount)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  cat?.nameTh ?? (t.isIncome ? 'รายรับ' : 'อื่นๆ'),
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// ภาพประกอบส่วนหัว (วาดด้วย widget — เหรียญ ฿ + กราฟแท่งเติบโต + วงกลมประดับ)
-class _HeaderArt extends StatelessWidget {
-  const _HeaderArt();
-
-  Widget _bar(double h) => Container(
-        width: 9,
-        height: h,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.85),
-          borderRadius: BorderRadius.circular(4),
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 92,
-      height: 84,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            right: 40,
-            top: 4,
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.16), shape: BoxShape.circle),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            top: 42,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.14), shape: BoxShape.circle),
-            ),
-          ),
-          Positioned(
-            right: 4,
-            bottom: 2,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [_bar(12), _bar(20), _bar(30)],
-            ),
-          ),
-          Positioned(
-            right: 28,
-            top: 0,
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 8, offset: Offset(0, 3))],
-              ),
-              alignment: Alignment.center,
-              child: const Text('฿',
-                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 22)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// เมนูด่วน เลื่อนแนวนอน
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
-  @override
-  Widget build(BuildContext context) {
-    final items = <({IconData icon, String label, Color color, VoidCallback onTap})>[
-      (icon: Icons.add_rounded, label: 'เพิ่มรายการ', color: AppColors.primary, onTap: () => context.push('/add')),
-      (icon: Icons.camera_alt_rounded, label: 'สแกนสลิป', color: AppColors.accent, onTap: () => context.push('/add')),
-      (icon: Icons.chat_bubble_rounded, label: 'คุยพี่เงิน', color: const Color(0xFFFFA94D), onTap: () => context.push('/chat')),
-      (icon: Icons.flag_rounded, label: 'เป้าหมาย', color: AppColors.income, onTap: () => context.push('/chat')),
-    ];
-    return SizedBox(
-      height: 94,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        physics: const BouncingScrollPhysics(),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) {
-          final it = items[i];
-          return GestureDetector(
-            onTap: it.onTap,
-            child: Container(
-              width: 88,
-              decoration: softCard(radius: 18),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: it.color.withOpacity(0.15),
-                    child: Icon(it.icon, color: it.color, size: 20),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(it.label,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textDark)),
-                ],
-              ),
             ),
           );
         },
@@ -859,13 +571,99 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
-/// Bottom navigation bar + center FAB notch
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick Actions Grid (4 items in a row — matches mockup)
+// ─────────────────────────────────────────────────────────────────────────────
+class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <({IconData icon, String label, VoidCallback onTap})>[
+      (icon: Icons.camera_alt_rounded, label: 'สแกนสลิป', onTap: () => context.push('/add')),
+      (icon: Icons.smart_toy_rounded, label: 'ปรึกษาพี่เงิน', onTap: () => context.push('/chat')),
+      (icon: Icons.flag_rounded, label: 'เป้าหมาย', onTap: () => context.push('/goals')),
+      (icon: Icons.add_circle_outline_rounded, label: 'เพิ่มรายการ', onTap: () => context.push('/add')),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1C),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: items.map((it) {
+          return GestureDetector(
+            onTap: it.onTap,
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.07),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  child: Icon(it.icon, color: Colors.white70, size: 26),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  it.label,
+                  style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error Box
+// ─────────────────────────────────────────────────────────────────────────────
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        const Text('โหลดข้อมูลไม่ได้ 😢', style: TextStyle(color: Colors.white)),
+        const SizedBox(height: 4),
+        Text(message,
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          onPressed: onRetry,
+          style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary),
+          child: const Text('ลองใหม่'),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom Navigation Bar
+// ─────────────────────────────────────────────────────────────────────────────
 class _DashboardNav extends StatelessWidget {
   const _DashboardNav();
+
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: Colors.white,
+      color: const Color(0xFF121212),
       elevation: 12,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
@@ -875,10 +673,10 @@ class _DashboardNav extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           const _NavItem(icon: Icons.home_rounded, label: 'หน้าหลัก', active: true),
-          _NavItem(icon: Icons.pie_chart_rounded, label: 'งบ', onTap: () => context.push('/budgets')),
+          _NavItem(icon: Icons.bar_chart_rounded, label: 'งบ', onTap: () => context.push('/budgets')),
           const SizedBox(width: 40),
-          _NavItem(icon: Icons.chat_bubble_rounded, label: 'พี่เงิน', onTap: () => context.push('/chat')),
-          _NavItem(icon: Icons.person_rounded, label: 'ฉัน', onTap: () => context.push('/profile')),
+          _NavItem(icon: Icons.smart_toy_rounded, label: 'พี่เงิน', onTap: () => context.push('/chat')),
+          _NavItem(icon: Icons.grid_view_rounded, label: 'เมนู', onTap: () => context.push('/profile')),
         ],
       ),
     );
@@ -891,21 +689,26 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.primary : AppColors.textMuted;
+    final color = active ? AppColors.primary : Colors.white38;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 22),
+            Icon(icon, color: color, size: 24),
             const SizedBox(height: 2),
             Text(label,
-                style: TextStyle(color: color, fontSize: 10, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                )),
           ],
         ),
       ),
@@ -913,25 +716,3 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/// หน้า "งบประมาณ" (เปิดจาก bottom nav) — ใช้ section งบจาก dashboard ซ้ำ
-class BudgetScreen extends StatelessWidget {
-  const BudgetScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('งบประมาณ', style: TextStyle(fontWeight: FontWeight.bold))),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          _BudgetsProgressSection(),
-          SizedBox(height: 16),
-          Text(
-            '💡 ตั้งงบรายหมวด แล้วพี่เงินจะเตือนเมื่อใกล้/เกินงบให้อัตโนมัติ',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
