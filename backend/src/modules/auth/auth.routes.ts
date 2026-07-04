@@ -4,12 +4,15 @@ import { asyncHandler } from '../../lib/http';
 import { requireAuth } from '../../lib/auth';
 import { registerSchema, loginSchema } from '../../lib/validate';
 import { registerUser, loginUser } from './auth.service';
-import { verifyGoogleIdToken, verifyFacebookToken, oauthLogin } from './oauth.service';
+import { verifyGoogleIdToken, verifyGoogleAccessToken, verifyFacebookToken, oauthLogin } from './oauth.service';
 import { prisma } from '../../lib/prisma';
 
 export const authRouter = Router();
 
-const googleSchema = z.object({ idToken: z.string().min(10) });
+// รับได้ทั้ง idToken (มือถือ) และ accessToken (เว็บ) — อย่างน้อย 1 อย่าง
+const googleSchema = z
+  .object({ idToken: z.string().min(10).optional(), accessToken: z.string().min(10).optional() })
+  .refine((d) => d.idToken || d.accessToken, { message: 'ต้องมี idToken หรือ accessToken' });
 const facebookSchema = z.object({ accessToken: z.string().min(10) });
 
 authRouter.post(
@@ -32,8 +35,8 @@ authRouter.post(
 authRouter.post(
   '/google',
   asyncHandler(async (req, res) => {
-    const { idToken } = googleSchema.parse(req.body);
-    const profile = await verifyGoogleIdToken(idToken);
+    const { idToken, accessToken } = googleSchema.parse(req.body);
+    const profile = idToken ? await verifyGoogleIdToken(idToken) : await verifyGoogleAccessToken(accessToken!);
     res.json(await oauthLogin(profile));
   }),
 );

@@ -38,6 +38,17 @@ export async function verifyGoogleIdToken(idToken: string): Promise<OAuthProfile
   };
 }
 
+/** verify Google access token (เว็บให้ access token แทน idToken) → profile ผ่าน userinfo endpoint */
+export async function verifyGoogleAccessToken(accessToken: string): Promise<OAuthProfile> {
+  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new HttpError(401, 'Google access token ไม่ถูกต้องหรือหมดอายุ');
+  const d = (await res.json()) as { sub?: string; email?: string; name?: string; picture?: string };
+  if (!d.sub || !d.email) throw new HttpError(401, 'Google token ไม่มีข้อมูลผู้ใช้');
+  return { provider: 'google', providerId: d.sub, email: d.email, displayName: d.name, avatarUrl: d.picture };
+}
+
 /** verify Facebook access token ผ่าน Graph API → profile */
 export async function verifyFacebookToken(accessToken: string): Promise<OAuthProfile> {
   const url = `https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${encodeURIComponent(accessToken)}`;

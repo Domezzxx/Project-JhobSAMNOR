@@ -103,14 +103,18 @@ class AuthController extends StateNotifier<AuthState> {
         return false;
       }
       final auth = await account.authentication;
-      final idToken = auth.idToken;
-      if (idToken == null) {
+      final idToken = auth.idToken; // มือถือให้ idToken
+      final accessToken = auth.accessToken; // เว็บให้ accessToken (idToken เป็น null)
+      if (idToken == null && accessToken == null) {
         state = state.copyWith(loading: false, error: 'ไม่ได้รับ Google token');
         return false;
       }
-      return _authRequest('/auth/google', {'idToken': idToken});
+      return _authRequest('/auth/google', {
+        if (idToken != null) 'idToken': idToken,
+        if (accessToken != null) 'accessToken': accessToken,
+      });
     } catch (e) {
-      state = state.copyWith(loading: false, error: 'ล็อกอิน Google ไม่สำเร็จ (ตรวจการตั้งค่า OAuth)');
+      state = state.copyWith(loading: false, error: 'ล็อกอิน Google ไม่สำเร็จ ลองใหม่อีกครั้ง');
       return false;
     }
   }
