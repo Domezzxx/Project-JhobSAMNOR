@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { cache } from '../../lib/cache';
 import type { Subscription } from '@prisma/client';
 import { runSubscriptionReminders } from './reminders';
+import { importSubscriptionsFromGmail } from './gmail_import';
 
 // 💡 DM-5 — Subscription Tracker (Netflix/Spotify/YouTube รายเดือน) · จำนวนเงินเป็นสตางค์
 
@@ -93,5 +94,17 @@ subscriptionsRouter.post(
   asyncHandler(async (req, res) => {
     const created = await runSubscriptionReminders(req.userId!);
     res.json({ created: created.length, notifications: created });
+  }),
+);
+
+// POST /api/v1/subscriptions/import-gmail — นำเข้า subscription จาก Gmail (ต้องมี Google access token + scope gmail.readonly)
+const gmailImportSchema = z.object({ accessToken: z.string().min(10) });
+subscriptionsRouter.post(
+  '/import-gmail',
+  asyncHandler(async (req, res) => {
+    const { accessToken } = gmailImportSchema.parse(req.body);
+    const result = await importSubscriptionsFromGmail(req.userId!, accessToken);
+    await cache.delPattern(`user:${req.userId!}:*`);
+    res.json(result);
   }),
 );

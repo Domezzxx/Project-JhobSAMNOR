@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../app/theme.dart';
 import '../../core/money.dart';
@@ -26,6 +27,13 @@ class SubscriptionsScreen extends ConsumerWidget {
           onPressed: () => context.pop(),
         ),
         title: const Text('Subscription', style: TextStyle(color: Colors.white)),
+        actions: [
+          IconButton(
+            tooltip: 'นำเข้าจาก Gmail',
+            icon: const Icon(Icons.mark_email_read_outlined, color: AppColors.primary),
+            onPressed: () => _importGmail(context, ref),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
@@ -97,6 +105,30 @@ class SubscriptionsScreen extends ConsumerWidget {
         child: _SubscriptionForm(existing: existing),
       ),
     );
+  }
+
+  /// นำเข้า subscription จาก Gmail — ขอ scope gmail.readonly แล้วส่ง access token ให้ backend สแกน
+  Future<void> _importGmail(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final account = await GoogleSignIn(
+        scopes: const ['email', 'https://www.googleapis.com/auth/gmail.readonly'],
+      ).signIn();
+      if (account == null) return; // ผู้ใช้ยกเลิก
+      final auth = await account.authentication;
+      final accessToken = auth.accessToken;
+      if (accessToken == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('ไม่ได้รับสิทธิ์อ่าน Gmail')));
+        return;
+      }
+      messenger.showSnackBar(const SnackBar(content: Text('กำลังสแกน Gmail... 📧')));
+      final result = await ref.read(subscriptionsRepoProvider).importFromGmail(accessToken);
+      ref.invalidate(subscriptionsProvider);
+      final n = result['imported'] ?? 0;
+      messenger.showSnackBar(SnackBar(content: Text('นำเข้า $n รายการจาก Gmail สำเร็จ 🎉')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('นำเข้าไม่สำเร็จ: $e')));
+    }
   }
 }
 
