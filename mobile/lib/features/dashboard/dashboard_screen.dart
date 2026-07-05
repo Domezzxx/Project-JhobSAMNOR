@@ -7,6 +7,7 @@ import '../../core/money.dart';
 import '../auth/auth_controller.dart';
 import '../transactions/transaction.dart';
 import '../transactions/transactions_repository.dart';
+import '../notifications/notif_bell.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dashboard Screen (Main) - Premium Dark UI Redesign
