@@ -7,6 +7,7 @@ import '../../core/money.dart';
 import '../auth/auth_controller.dart';
 import '../transactions/transaction.dart';
 import '../transactions/transactions_repository.dart';
+import '../notifications/notif_bell.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dashboard Screen (Main)
@@ -189,11 +190,8 @@ class _GreenHeader extends StatelessWidget {
               ],
             ),
           ),
-          // Notification bell
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 26),
-          ),
+          // Notification bell → Notification Center (+ badge จำนวนยังไม่อ่าน)
+          const NotifBell(),
         ],
       ),
     );
@@ -676,7 +674,7 @@ class _DashboardNav extends StatelessWidget {
           _NavItem(icon: Icons.bar_chart_rounded, label: 'งบ', onTap: () => context.push('/budgets')),
           const SizedBox(width: 40),
           _NavItem(icon: Icons.smart_toy_rounded, label: 'พี่เงิน', onTap: () => context.push('/chat')),
-          _NavItem(icon: Icons.grid_view_rounded, label: 'เมนู', onTap: () => context.push('/profile')),
+          _NavItem(icon: Icons.grid_view_rounded, label: 'เมนู', onTap: () => context.push('/menu')),
         ],
       ),
     );
