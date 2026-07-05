@@ -1,7 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
 import '../../core/money.dart';
@@ -107,27 +108,30 @@ class SubscriptionsScreen extends ConsumerWidget {
     );
   }
 
-  /// นำเข้า subscription จาก Gmail — ขอ scope gmail.readonly แล้วส่ง access token ให้ backend สแกน
+  /// นำเข้า subscription จาก Gmail — server-side OAuth (robust)
+  /// ขอ URL จาก backend → เปิดหน้ายินยอม Google เต็มหน้า → backend จัดการ callback + import เอง
   Future<void> _importGmail(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final account = await GoogleSignIn(
-        scopes: const ['email', 'https://www.googleapis.com/auth/gmail.readonly'],
-      ).signIn();
-      if (account == null) return; // ผู้ใช้ยกเลิก
-      final auth = await account.authentication;
-      final accessToken = auth.accessToken;
-      if (accessToken == null) {
-        messenger.showSnackBar(const SnackBar(content: Text('ไม่ได้รับสิทธิ์อ่าน Gmail')));
+      final url = await ref.read(subscriptionsRepoProvider).gmailAuthUrl();
+      final ok = await launchUrl(
+        Uri.parse(url),
+        webOnlyWindowName: '_blank', // เปิดแท็บใหม่บนเว็บ
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok) {
+        messenger.showSnackBar(const SnackBar(content: Text('เปิดหน้ายินยอม Google ไม่ได้')));
         return;
       }
-      messenger.showSnackBar(const SnackBar(content: Text('กำลังสแกน Gmail... 📧')));
-      final result = await ref.read(subscriptionsRepoProvider).importFromGmail(accessToken);
-      ref.invalidate(subscriptionsProvider);
-      final n = result['imported'] ?? 0;
-      messenger.showSnackBar(SnackBar(content: Text('นำเข้า $n รายการจาก Gmail สำเร็จ 🎉')));
+      messenger.showSnackBar(const SnackBar(
+        content: Text('เปิดหน้ายินยอม Google แล้ว 📧 · เสร็จแล้วกลับมาที่นี่ ลากลงเพื่อรีเฟรช'),
+        duration: Duration(seconds: 5),
+      ));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('นำเข้าไม่สำเร็จ: $e')));
+      final msg = e is DioException
+          ? (e.response?.data is Map ? (e.response!.data['message'] ?? e.message) : e.message)
+          : e;
+      messenger.showSnackBar(SnackBar(content: Text('นำเข้าไม่สำเร็จ: $msg')));
     }
   }
 }

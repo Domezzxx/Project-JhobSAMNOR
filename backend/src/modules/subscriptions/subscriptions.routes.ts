@@ -7,6 +7,7 @@ import { cache } from '../../lib/cache';
 import type { Subscription } from '@prisma/client';
 import { runSubscriptionReminders } from './reminders';
 import { importSubscriptionsFromGmail } from './gmail_import';
+import { buildGmailAuthUrl } from './gmail_oauth';
 
 // 💡 DM-5 — Subscription Tracker (Netflix/Spotify/YouTube รายเดือน) · จำนวนเงินเป็นสตางค์
 
@@ -94,6 +95,15 @@ subscriptionsRouter.post(
   asyncHandler(async (req, res) => {
     const created = await runSubscriptionReminders(req.userId!);
     res.json({ created: created.length, notifications: created });
+  }),
+);
+
+// GET /api/v1/subscriptions/gmail/auth-url — คืน URL ให้ผู้ใช้ไปยินยอมที่ Google (server-side OAuth, robust)
+subscriptionsRouter.get(
+  '/gmail/auth-url',
+  asyncHandler(async (req, res) => {
+    const url = buildGmailAuthUrl(req.userId!);
+    res.json({ url });
   }),
 );
 

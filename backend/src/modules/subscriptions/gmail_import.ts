@@ -34,10 +34,14 @@ export async function importSubscriptionsFromGmail(userId: string, accessToken: 
   const searchUrl =
     `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q=${encodeURIComponent(query)}`;
   const sRes = await fetch(searchUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (sRes.status === 401 || sRes.status === 403) {
-    throw new HttpError(401, 'Gmail token ไม่ถูกต้อง/ไม่มีสิทธิ์ — ต้องล็อกอิน Google พร้อม scope gmail.readonly');
+  if (!sRes.ok) {
+    const errBody = await sRes.text().catch(() => '');
+    console.error(`[gmail-import] Gmail API ${sRes.status}:`, errBody.slice(0, 500));
+    if (sRes.status === 401 || sRes.status === 403) {
+      throw new HttpError(401, `อ่าน Gmail ไม่ได้ (${sRes.status}) — token ไม่มี scope gmail.readonly หรือหมดอายุ · ลองล็อกอิน Google ใหม่ด้วยบัญชี test user`);
+    }
+    throw new HttpError(502, `เรียก Gmail API ไม่สำเร็จ (${sRes.status})`);
   }
-  if (!sRes.ok) throw new HttpError(502, 'เรียก Gmail API ไม่สำเร็จ');
 
   const search = (await sRes.json()) as { messages?: { id: string }[] };
   const messages = search.messages ?? [];
