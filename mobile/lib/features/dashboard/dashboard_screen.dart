@@ -101,21 +101,16 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: Container(
-        height: 64,
-        width: 64,
-        margin: const EdgeInsets.only(top: 10),
-        child: FloatingActionButton(
-          onPressed: () async {
-            await context.push('/add');
-            ref.invalidate(dashboardProvider);
-          },
-          backgroundColor: const Color(0xFF3CAE63),
-          foregroundColor: Colors.black,
-          shape: const CircleBorder(),
-          elevation: 4,
-          child: const Icon(Icons.add, size: 32),
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await context.push('/slip');
+          ref.invalidate(dashboardProvider);
+        },
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: const Icon(Icons.add, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: const _DashboardNav(),
@@ -584,10 +579,10 @@ class _QuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <({IconData icon, String label, VoidCallback onTap})>[
-      (icon: Icons.camera_alt_outlined, label: 'สแกนสลิป', onTap: () => context.push('/add')),
-      (icon: Icons.chat_bubble_outline_rounded, label: 'ปรึกษาพี่เงิน', onTap: () => context.push('/chat')),
-      (icon: Icons.flag_outlined, label: 'เป้าหมาย', onTap: () => context.push('/goals')),
-      (icon: Icons.add_outlined, label: 'เพิ่มรายการ', onTap: () => context.push('/add')),
+      (icon: Icons.document_scanner_outlined, label: 'สแกนสลิป', onTap: () => context.push('/slip')),
+      (icon: Icons.smart_toy_rounded, label: 'ปรึกษาพี่เงิน', onTap: () => context.push('/chat')),
+      (icon: Icons.flag_rounded, label: 'เป้าหมาย', onTap: () => context.push('/goals')),
+      (icon: Icons.add_circle_outline_rounded, label: 'เพิ่มรายการ', onTap: () => context.push('/add')),
     ];
 
     return Container(

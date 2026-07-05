@@ -7,6 +7,7 @@ import '../features/auth/forgot_password_screen.dart'; // ➕ อิมพอร
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/dashboard/edit_balance_screen.dart'; // ➕ อิมพอร์ตหน้าแก้ไขยอดเงินคงเหลือเข้ามา
 import '../features/transactions/add_transaction_screen.dart';
+import '../features/transactions/slip_screen.dart';
 import '../features/transactions/transaction.dart';
 import '../features/chat/chat_screen.dart';
 import '../features/profile/profile_screen.dart';
@@ -78,7 +79,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             AddTransactionScreen(transaction: state.extra as Txn?),
       ),
-      GoRoute(path: '/edit-balance', builder: (_, __) => const EditBalanceScreen()),
+      GoRoute(path: '/slip', builder: (_, __) => const SlipScreen()),
       GoRoute(path: '/chat', builder: (_, __) => const ChatScreen()),
       GoRoute(path: '/budgets', builder: (_, __) => const BudgetListScreen()),
       GoRoute(
