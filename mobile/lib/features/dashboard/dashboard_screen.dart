@@ -7,6 +7,7 @@ import '../../core/money.dart';
 import '../auth/auth_controller.dart';
 import '../transactions/transaction.dart';
 import '../transactions/transactions_repository.dart';
+import '../notifications/notif_bell.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dashboard Screen (Main)
@@ -189,11 +190,8 @@ class _GreenHeader extends StatelessWidget {
               ],
             ),
           ),
-          // Notification bell
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 26),
-          ),
+          // Notification bell → Notification Center (+ badge จำนวนยังไม่อ่าน)
+          const NotifBell(),
         ],
       ),
     );
