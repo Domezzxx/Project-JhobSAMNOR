@@ -82,6 +82,19 @@ class SubscriptionsRepository {
   Future<void> delete(String id) async {
     await _dio.delete('/subscriptions/$id');
   }
+
+  /// นำเข้าจาก Gmail — ส่ง Google access token (scope gmail.readonly) ให้ backend สแกน
+  Future<Map<String, dynamic>> importFromGmail(String accessToken) async {
+    final res = await _dio.post('/subscriptions/import-gmail', data: {'accessToken': accessToken});
+    return res.data as Map<String, dynamic>;
+  }
+
+  /// ขอ URL สำหรับ server-side OAuth (robust) — เปิดให้ผู้ใช้ยินยอมที่ Google เต็มหน้า
+  /// backend จะ redirect กลับมาที่ callback แล้วนำเข้าให้เอง
+  Future<String> gmailAuthUrl() async {
+    final res = await _dio.get('/subscriptions/gmail/auth-url');
+    return (res.data as Map<String, dynamic>)['url'] as String;
+  }
 }
 
 final subscriptionsRepoProvider = Provider<SubscriptionsRepository>(

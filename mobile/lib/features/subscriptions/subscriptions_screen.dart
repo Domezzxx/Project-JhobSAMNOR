@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
 import '../../core/money.dart';
@@ -26,6 +28,13 @@ class SubscriptionsScreen extends ConsumerWidget {
           onPressed: () => context.pop(),
         ),
         title: const Text('Subscription', style: TextStyle(color: Colors.white)),
+        actions: [
+          IconButton(
+            tooltip: 'นำเข้าจาก Gmail',
+            icon: const Icon(Icons.mark_email_read_outlined, color: AppColors.primary),
+            onPressed: () => _importGmail(context, ref),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
@@ -97,6 +106,33 @@ class SubscriptionsScreen extends ConsumerWidget {
         child: _SubscriptionForm(existing: existing),
       ),
     );
+  }
+
+  /// นำเข้า subscription จาก Gmail — server-side OAuth (robust)
+  /// ขอ URL จาก backend → เปิดหน้ายินยอม Google เต็มหน้า → backend จัดการ callback + import เอง
+  Future<void> _importGmail(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final url = await ref.read(subscriptionsRepoProvider).gmailAuthUrl();
+      final ok = await launchUrl(
+        Uri.parse(url),
+        webOnlyWindowName: '_blank', // เปิดแท็บใหม่บนเว็บ
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok) {
+        messenger.showSnackBar(const SnackBar(content: Text('เปิดหน้ายินยอม Google ไม่ได้')));
+        return;
+      }
+      messenger.showSnackBar(const SnackBar(
+        content: Text('เปิดหน้ายินยอม Google แล้ว 📧 · เสร็จแล้วกลับมาที่นี่ ลากลงเพื่อรีเฟรช'),
+        duration: Duration(seconds: 5),
+      ));
+    } catch (e) {
+      final msg = e is DioException
+          ? (e.response?.data is Map ? (e.response!.data['message'] ?? e.message) : e.message)
+          : e;
+      messenger.showSnackBar(SnackBar(content: Text('นำเข้าไม่สำเร็จ: $msg')));
+    }
   }
 }
 
