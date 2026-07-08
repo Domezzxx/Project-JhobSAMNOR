@@ -12,6 +12,8 @@ import { recommendationsRouter } from './modules/recommendations/recommendations
 import { subscriptionsRouter } from './modules/subscriptions/subscriptions.routes';
 import { integrationsRouter } from './modules/integrations/integrations.routes';
 import { chatRouter } from './modules/chat/chat.routes';
+import { predictionsRouter } from './modules/predictions/predictions.routes';
+import { exportRouter } from './modules/export/export.routes';
 import { notFound, errorHandler } from './middleware/error';
 
 export function createApp() {
@@ -31,6 +33,8 @@ export function createApp() {
   app.use('/api/v1/subscriptions', subscriptionsRouter);
   app.use('/api/v1/integrations', integrationsRouter);
   app.use('/api/v1/chat', chatRouter);
+  app.use('/api/v1/predictions', predictionsRouter);
+  app.use('/api/v1/export', exportRouter);
 
   app.use(notFound);
   app.use(errorHandler);

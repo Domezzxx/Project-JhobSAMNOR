@@ -48,7 +48,7 @@ gantt
 | **Sprint 2** | Transaction Core + OCR | ✅ Done | 100% |
 | **Sprint 3** | Smart Dashboard + Budget | ✅ Done | 100% |
 | **Sprint 4** | AI Coach "พี่เงิน" | ✅ Done (แถมโบนัส) | 100% |
-| **Sprint 5** | Goals + Smart Notifications | 🏃 Doing | 0% |
+| **Sprint 5** | Goals + Notifications (+ Social Login/OCR สลิป/Subscription เป็นโบนัส) | 🏃 Doing | ~90% |
 | **Sprint 6** | Predictions + Gamification + Beta | ⏳ Todo | 0% |
 | **Sprint 7** | Hardening (Security / PDPA / Polish) | ⏳ Todo | 0% |
 | **Sprint 8** | Launch + สรุปโปรเจกต์ | ⏳ Todo | 0% |

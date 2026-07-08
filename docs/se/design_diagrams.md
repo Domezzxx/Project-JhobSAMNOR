@@ -1,5 +1,7 @@
 # SE-4 Design & Implementation Diagrams
 
+> อ้างอิงจาก implementation จริงใน repo (backend แบบ modular `src/modules/*`, Flutter `lib/features/*`)
+
 ## 1. System Architecture Diagram
 
 ภาพรวมสถาปัตยกรรมของระบบ AI Finance Coach "พี่เงิน" แสดงการสื่อสารระหว่าง Layer ทั้งหมด
@@ -7,21 +9,22 @@
 ```mermaid
 graph TB
     subgraph Client["📱 Client Layer"]
-        Flutter["Flutter App\n(Dart + Riverpod + Hive)"]
+        Flutter["Flutter App<br/>(Dart + Riverpod + Hive)"]
     end
 
-    subgraph API["⚙️ API Layer"]
-        Express["Node.js + Express\n(TypeScript)"]
-        Auth["Auth Middleware\n(JWT)"]
-        Cache["Cache Layer\n(Redis / In-memory)"]
+    subgraph API["⚙️ API Layer (Node.js + Express + TypeScript)"]
+        Express["REST API<br/>/api/v1/*"]
+        Auth["Auth Middleware<br/>(JWT)"]
+        Cache["Cache Layer<br/>(Redis / In-memory fallback)"]
+        Router["LLM Provider Router<br/>(coach.ts · OpenAI SDK)"]
+        OCRsvc["OCR Service<br/>(coach.ts ocrImage)"]
     end
 
-    subgraph AI["🤖 AI/ML Layer"]
-        LangChain["LangChain Router"]
-        Typhoon["Typhoon LLM\n(ภาษาไทยดีสุด)"]
-        Groq["Groq LLM\n(เร็ว + ฟรี)"]
-        OpenAI["OpenAI GPT\n(Fallback)"]
-        RuleEngine["Rule-based Fallback"]
+    subgraph AI["🤖 AI/ML Providers (OpenAI-compatible)"]
+        Typhoon["Typhoon LLM + OCR<br/>(ภาษาไทยดีสุด)"]
+        Groq["Groq LLM<br/>(เร็ว + ฟรี)"]
+        OpenAI["OpenAI GPT<br/>(Fallback)"]
+        RuleEngine["Rule-based Reply<br/>(ไม่มี key → grounded)"]
     end
 
     subgraph DB["🗃️ Data Layer"]
@@ -31,24 +34,26 @@ graph TB
     end
 
     subgraph External["🌐 External Services"]
-        FCM["Firebase FCM\n(Push Notifications)"]
-        OCR["ML Kit / Typhoon Vision\n(OCR สลิป)"]
+        FCM["Firebase FCM<br/>(Push · guarded)"]
     end
 
     Flutter <-->|"REST API / JWT"| Express
     Express --> Auth
     Express --> Cache
-    Express <-->|"Context Injection"| LangChain
+    Express --> Router
+    Express --> OCRsvc
     Express <-->|"Prisma Client"| Prisma
     Prisma --> SQLite
     Prisma --> Postgres
-    LangChain --> Typhoon
-    LangChain --> Groq
-    LangChain --> OpenAI
-    LangChain --> RuleEngine
-    Express <-->|"Push Trigger"| FCM
-    Flutter <-->|"วิเคราะห์รูปสลิป"| OCR
+    Router -->|"ลำดับ: มี key ตัวไหนใช้ตัวนั้น"| Typhoon
+    Router --> Groq
+    Router --> OpenAI
+    Router -->|"ทุกตัวล้มเหลว/ไม่มี key"| RuleEngine
+    OCRsvc -->|"gmail-style vision"| Typhoon
+    Express <-->|"Push Trigger (cron)"| FCM
 ```
+
+> **หมายเหตุ:** ไม่ได้ใช้ LangChain — การเลือก provider ทำเองใน `backend/src/modules/chat/coach.ts` (`configuredProviders()` + `chatComplete()`) ผ่าน OpenAI SDK ที่ตั้ง `baseURL` ต่างกันต่อ provider · OCR สลิปเป็น **server-side** ด้วย Typhoon OCR (ไม่ใช่ ML Kit บนเครื่อง)
 
 ---
 
@@ -58,40 +63,38 @@ graph TB
 
 ```mermaid
 graph LR
-    subgraph Mobile["📱 Flutter App"]
-        subgraph Presentation["Presentation Layer (Features)"]
-            Auth["auth/\n(login, register)"]
-            Dashboard["dashboard/\n(pie chart, summary)"]
-            Transactions["transactions/\n(add, list, OCR scan)"]
-            Chat["chat/\n(AI Coach UI)"]
-            Goals["goals/\n(progress, create)"]
-            Profile["profile/\n(settings, logout)"]
+    subgraph Mobile["📱 Flutter App (lib/)"]
+        subgraph Presentation["features/ (Presentation)"]
+            Auth["auth/<br/>login, register, forgot_password"]
+            Dashboard["dashboard/<br/>balance, edit_balance"]
+            Transactions["transactions/<br/>add, slip_screen (OCR)"]
+            Chat["chat/<br/>chat_screen (AI Coach)"]
+            Goals["goals/<br/>goals_screen, deposit"]
+            Subs["subscriptions/ · notifications/"]
         end
 
-        subgraph Core["Core Layer"]
-            Router["app/router.dart\n(go_router)"]
-            Theme["app/theme.dart\n(Dark + Green)"]
-            ApiClient["core/api_client.dart\n(dio + interceptor)"]
-            HiveStorage["core/hive_storage.dart\n(offline cache)"]
+        subgraph Core["core/ + app/"]
+            RouterC["app/router.dart<br/>(go_router)"]
+            Theme["app/theme.dart<br/>(Dark + Green)"]
+            ApiClient["core/api/api_client.dart<br/>(dio + JWT interceptor + token store)"]
         end
 
-        subgraph State["State Management (Riverpod)"]
-            AuthProvider["authProvider"]
-            TxnProvider["transactionProvider"]
-            DashProvider["dashboardProvider"]
-            ChatProvider["chatProvider"]
+        subgraph State["State (Riverpod)"]
+            AuthProvider["authControllerProvider"]
+            TxnProvider["dashboardProvider / categoriesProvider"]
+            ChatProvider["chatRepoProvider"]
+            NotifP["notificationsProvider"]
         end
     end
 
     Presentation --> State
     State --> ApiClient
-    State --> HiveStorage
-    ApiClient <-->|"REST"| Backend[("Backend API\n:4000")]
+    ApiClient <-->|"REST :4000"| Backend[("Backend API")]
 ```
 
 ---
 
-## 3. ER Diagram (จาก Prisma Schema จริง)
+## 3. ER Diagram (จาก Prisma Schema จริง — 9 models)
 
 ```mermaid
 erDiagram
@@ -99,11 +102,15 @@ erDiagram
         String id PK
         String email UK
         String phone
-        String passwordHash
+        String passwordHash "nullable (social login)"
+        String provider "local | google | facebook"
+        String providerId
+        String avatarUrl
         String displayName
         Int monthlyIncome
         Int level
         Int streak
+        String deviceToken "FCM"
         DateTime createdAt
         DateTime updatedAt
     }
@@ -114,7 +121,7 @@ erDiagram
         String nameTh
         String icon
         String color
-        String type
+        String type "income | expense"
         Boolean isDefault
         DateTime createdAt
     }
@@ -123,9 +130,9 @@ erDiagram
         String id PK
         String userId FK
         String type
-        Int amount
+        Int amount "satang"
         String note
-        String source
+        String source "manual | ocr"
         String categoryId FK
         DateTime occurredAt
         DateTime createdAt
@@ -135,8 +142,8 @@ erDiagram
         String id PK
         String userId FK
         String categoryId FK
-        Int amount
-        String period
+        Int amount "satang/period"
+        String period "monthly | weekly"
         DateTime createdAt
     }
 
@@ -144,8 +151,8 @@ erDiagram
         String id PK
         String userId FK
         String name
-        Int target
-        Int current
+        Int target "satang"
+        Int current "satang"
         DateTime deadline
         DateTime createdAt
     }
@@ -153,9 +160,31 @@ erDiagram
     ChatMessage {
         String id PK
         String userId FK
-        String role
+        String role "user | assistant"
         String content
-        String context
+        String context "JSON: source ของคำตอบ"
+        DateTime createdAt
+    }
+
+    Notification {
+        String id PK
+        String userId FK
+        String type "budget_near | budget_over | goal | subscription | daily_summary"
+        String title
+        String body
+        Boolean read
+        String data "JSON meta"
+        DateTime createdAt
+    }
+
+    Subscription {
+        String id PK
+        String userId FK
+        String name
+        Int amount "satang/รอบ"
+        String cycle "monthly | yearly"
+        DateTime nextBilling
+        String logo
         DateTime createdAt
     }
 
@@ -170,6 +199,8 @@ erDiagram
     User ||--o{ Budget : "ตั้ง"
     User ||--o{ Goal : "วางแผน"
     User ||--o{ ChatMessage : "คุย"
+    User ||--o{ Notification : "รับแจ้งเตือน"
+    User ||--o{ Subscription : "สมัคร"
     User ||--o{ Achievement : "ได้รับ"
     Category ||--o{ Transaction : "จัดหมวด"
     Category ||--o{ Budget : "กำกับ"
@@ -184,12 +215,14 @@ classDiagram
     class User {
         +String id
         +String email
+        +String provider
         +String displayName
         +int monthlyIncome
         +int level
         +int streak
         +register() AuthToken
         +login() AuthToken
+        +oauthLogin(provider) AuthToken
     }
 
     class Transaction {
@@ -206,7 +239,6 @@ classDiagram
 
     class Budget {
         +String id
-        +String userId
         +int amount
         +String period
         +getStatus() BudgetStatus
@@ -221,34 +253,35 @@ classDiagram
 
     class Goal {
         +String id
-        +String name
         +int target
         +int current
         +DateTime deadline
         +getProgress() double
     }
 
-    class AICoach {
-        +buildContext(userId) CoachContext
-        +chat(message, context) String
-        +provider: Typhoon | Groq | OpenAI | Fallback
+    class LlmProviderRouter {
+        +configuredProviders() List~Provider~
+        +chatComplete(messages) Reply
+        +ocrImage(dataUrl) String
+        +note: Typhoon → Groq → OpenAI → rule-based
     }
 
     class CoachContext {
-        +int totalIncome
-        +int totalExpense
+        +String displayName
+        +int monthlyIncome
+        +int thisMonthSpent
         +List topExpenses
         +List goals
-        +List budgetStatus
+        +List budgetRemaining
+        +int streakDays
     }
 
     User "1" --> "many" Transaction
     User "1" --> "many" Budget
     User "1" --> "many" Goal
     Budget --> BudgetStatus
-    Goal --> User
-    AICoach --> CoachContext
-    CoachContext --> User
+    LlmProviderRouter --> CoachContext : ใช้ประกอบ prompt
+    CoachContext --> User : สร้างจากข้อมูล (ไม่มี PII)
 ```
 
 ---
@@ -261,68 +294,73 @@ classDiagram
 sequenceDiagram
     actor User as ผู้ใช้
     participant Flutter as Flutter App
-    participant API as Backend API
-    participant DB as Database
-    participant AI as LangChain + LLM
+    participant API as Backend (chat.routes)
+    participant DB as Database (Prisma)
+    participant AI as LLM Provider Router (coach.ts)
 
-    User->>Flutter: พิมพ์ข้อความ "เดือนนี้ใช้เงินมากไปไหม?"
-    Flutter->>API: POST /chat/message { message, userId }
-    API->>DB: ดึง Context (income, expenses, budgets, goals)
-    DB-->>API: ข้อมูลการเงินย้อนหลัง 30 วัน
-    API->>AI: ส่ง Prompt + Context Injection (ตัด PII ก่อน)
-    AI-->>API: คำตอบ (≤150 คำ + Disclaimer)
-    API->>DB: บันทึก ChatMessage (role=assistant)
-    API-->>Flutter: { reply: "เดือนนี้คุณใช้ไป 12,500 บาท..." }
-    Flutter-->>User: แสดงฟอง Chat + Markdown Rendering
+    User->>Flutter: พิมพ์ "เดือนนี้ใช้เงินมากไปไหม?"
+    Flutter->>API: POST /api/v1/chat { message } (JWT)
+    API->>DB: buildContext(userId) + ดึง history ล่าสุด
+    DB-->>API: income, spent, budgets, goals, streak (ไม่มี PII)
+    API->>AI: chatComplete(persona + context + message)
+    Note over AI: เลือก provider ตาม key ที่ตั้ง<br/>Typhoon → Groq → OpenAI → rule-based
+    AI-->>API: คำตอบ (~150–200 คำ + disclaimer ถ้าพูดเรื่องลงทุน)
+    API->>DB: บันทึก ChatMessage (role=assistant, source)
+    API-->>Flutter: { message, source: "typhoon:..." }
+    Flutter-->>User: แสดงฟองแชท + typewriter + Markdown
 ```
 
-### 5.2 สแกนสลิป OCR → บันทึก Transaction
+### 5.2 สแกนสลิป (Server-side Typhoon OCR) → บันทึก Transaction
 
 ```mermaid
 sequenceDiagram
     actor User as ผู้ใช้
-    participant Flutter as Flutter App
-    participant OCR as ML Kit / Typhoon Vision
-    participant API as Backend API
+    participant Flutter as Flutter App (slip_screen)
+    participant API as Backend (transactions.routes)
+    participant OCR as Typhoon OCR (coach.ts ocrImage)
+    participant Parser as parser.ts
     participant DB as Database
 
-    User->>Flutter: เปิดกล้องและถ่ายภาพสลิป
-    Flutter->>OCR: ส่งรูปภาพ
-    OCR-->>Flutter: Raw Text (จำนวนเงิน, วันที่, ร้านค้า)
-    Flutter->>Flutter: Post-process: parse ตัวเลข + วันที่
-    Flutter-->>User: แสดงฟอร์ม Review พร้อม Category แนะนำ
+    User->>Flutter: เลือก/ถ่ายรูปสลิป
+    Flutter->>API: POST /transactions/parse-slip { imageBase64 } (JWT)
+    API->>OCR: ส่งรูป (data URL) ให้ Typhoon OCR
+    OCR-->>API: Raw text (ยอด, วันที่, ผู้รับ, อ้างอิง)
+    API->>Parser: parseAmount / parseDate / parseMerchant / autoCategorize
+    Parser-->>API: { amount, date, merchant, categoryId }
+    API-->>Flutter: เติมฟอร์มอัตโนมัติ (ยอด/วันที่/หมวด/คำอธิบาย)
     User->>Flutter: ตรวจสอบและกด "ยืนยัน"
-    Flutter->>API: POST /transactions { amount, date, category, source: "ocr" }
-    API->>DB: INSERT Transaction
-    DB-->>API: Transaction Object
-    API-->>Flutter: { success: true, transaction }
-    Flutter-->>User: แสดงหน้ายืนยัน + อัปเดต Dashboard
+    Flutter->>API: POST /transactions { amount, occurredAt, categoryId, source: "ocr" }
+    API->>DB: INSERT Transaction (+ ตรวจ anomaly)
+    API-->>Flutter: { transaction, anomalyAlert? }
+    Flutter-->>User: กลับหน้าเดิม + invalidate Dashboard
 ```
 
 ### 5.3 ตรวจสอบงบประมาณและแจ้งเตือน
 
 ```mermaid
 sequenceDiagram
-    participant Cron as Cron Job (ทุกชั่วโมง)
-    participant API as Backend API
+    participant Cron as Cron Job (NOTIF_CRON=on)
+    participant API as Backend (triggers.ts)
     participant DB as Database
-    participant FCM as Firebase FCM
+    participant FCM as Firebase FCM (guarded)
     actor User as ผู้ใช้ (มือถือ)
 
-    Cron->>API: Trigger ตรวจสอบงบประมาณ
-    API->>DB: GET /budgets/status (all users)
-    DB-->>API: รายการ Budget ที่ใกล้หรือเกินงบ
-    loop สำหรับแต่ละ Budget ที่เกิน 80%
-        API->>FCM: ส่ง Push Notification payload
+    Cron->>API: runBudgetTriggers() ตรวจงบทุกผู้ใช้
+    API->>DB: คำนวณ spent เทียบ budget
+    DB-->>API: หมวดที่ใกล้/เกินงบ
+    loop แต่ละหมวดที่เกิน threshold
+        API->>DB: สร้าง Notification (budget_near | budget_over)
+        API->>FCM: ส่ง push (ถ้ามี deviceToken + creds)
         FCM-->>User: 🔔 "คุณใช้งบอาหารไปแล้ว 85% เดือนนี้!"
     end
+    Note over API,User: ถ้ายังไม่ตั้ง Firebase creds → เก็บใน Notification Center อย่างเดียว
 ```
 
 ---
 
-## 6. Wireframe — หน้าจอสำคัญ (Sprint 5–6 ที่ยังไม่ได้ทำ)
+## 6. Wireframe — หน้าจอสำคัญ
 
-### 6.1 หน้า Goals (เป้าหมายการออม) — Sprint 5
+### 6.1 หน้า Goals (เป้าหมายการออม) — ทำแล้ว
 
 ```
 ┌─────────────────────────────┐
@@ -342,7 +380,7 @@ sequenceDiagram
 └─────────────────────────────┘
 ```
 
-### 6.2 หน้า Gamification (Streak & Badge) — Sprint 6
+### 6.2 หน้า Gamification (Streak & Badge) — Sprint 6 (ยังไม่ทำ)
 
 ```
 ┌─────────────────────────────┐

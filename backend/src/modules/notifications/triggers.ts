@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { baht } from '../chat/persona';
 import { createNotification } from './create';
 import { runAllUsersSubscriptionReminders } from '../subscriptions/reminders';
+import { runAllUsersPredictionTriggers } from '../predictions/prediction_triggers';
 
 /** ตรวจงบรายเดือน → แจ้งเตือน "ใกล้เต็มงบ (≥80%)" / "เกินงบ" */
 export async function runBudgetTriggers(userId: string) {
@@ -90,6 +91,7 @@ export function startNotificationScheduler() {
   timer = setInterval(() => {
     runAllUsersBudgetTriggers().catch(() => {});
     runAllUsersSubscriptionReminders().catch(() => {}); // เตือน subscription ที่ใกล้ตัดเงิน
+    runAllUsersPredictionTriggers().catch(() => {}); // 🔮 พยากรณ์ AI เบื้องหลัง → แจ้งเตือนเงินตึง/ผิดปกติ
   }, everyMs);
   console.log(`[notif] scheduler เปิด (ทุก ~${Math.round(everyMs / 60000)} นาที)`);
 }
