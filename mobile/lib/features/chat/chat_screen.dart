@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
+import '../../core/api/api_client.dart';
 import 'chat_message.dart';
 import 'chat_repository.dart';
 
@@ -371,11 +373,48 @@ class _Bubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: isUser ? null : Border.all(color: Colors.white.withOpacity(0.06)),
         ),
-        child: isUser
-            ? Text(message.content, style: const TextStyle(color: Colors.white, height: 1.4))
-            : animate
-                ? _TypewriterMarkdown(text: message.content, onGrow: onGrow)
-                : MarkdownBody(data: message.content, selectable: true, styleSheet: _coachMdStyle()),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            isUser
+                ? Text(message.content, style: const TextStyle(color: Colors.white, height: 1.4))
+                : animate
+                    ? _TypewriterMarkdown(text: message.content, onGrow: onGrow)
+                    : MarkdownBody(data: message.content, selectable: true, styleSheet: _coachMdStyle()),
+            // ปุ่มดาวน์โหลดไฟล์ที่พี่เงินสร้างให้ (Excel/XML)
+            if (!isUser && message.attachment != null) ...[
+              const SizedBox(height: 10),
+              _DownloadButton(att: message.attachment!),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ปุ่มดาวน์โหลดไฟล์การเงินจากพี่เงิน — เปิด URL export (auth ด้วย download token)
+class _DownloadButton extends StatelessWidget {
+  const _DownloadButton({required this.att});
+  final ChatAttachment att;
+
+  @override
+  Widget build(BuildContext context) {
+    final isExcel = att.format == 'xlsx';
+    return OutlinedButton.icon(
+      onPressed: () {
+        final url = '$kApiBaseUrl/api/v1/export/${att.kind}?format=${att.format}&dt=${att.token}';
+        launchUrl(Uri.parse(url), webOnlyWindowName: '_blank', mode: LaunchMode.externalApplication);
+      },
+      icon: Icon(isExcel ? Icons.table_chart_outlined : Icons.code, size: 18, color: AppColors.primary),
+      label: Text('ดาวน์โหลด ${att.filename}',
+          style: const TextStyle(color: AppColors.primary, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: AppColors.primary.withOpacity(0.08),
       ),
     );
   }

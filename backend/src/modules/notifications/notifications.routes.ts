@@ -4,6 +4,7 @@ import { asyncHandler, HttpError } from '../../lib/http';
 import { requireAuth } from '../../lib/auth';
 import { z } from 'zod';
 import { runBudgetTriggers } from './triggers';
+import { runPredictionTriggers } from '../predictions/prediction_triggers';
 
 export const notificationsRouter = Router();
 notificationsRouter.use(requireAuth);
@@ -56,7 +57,11 @@ notificationsRouter.post(
 notificationsRouter.post(
   '/run-triggers',
   asyncHandler(async (req, res) => {
-    const created = await runBudgetTriggers(req.userId!);
+    const [budget, prediction] = await Promise.all([
+      runBudgetTriggers(req.userId!),
+      runPredictionTriggers(req.userId!), // 🔮 พยากรณ์ AI → แจ้งเตือน (ข้ามเงียบถ้า FastAPI ปิด)
+    ]);
+    const created = [...budget, ...prediction];
     res.json({ created: created.length, notifications: created });
   }),
 );

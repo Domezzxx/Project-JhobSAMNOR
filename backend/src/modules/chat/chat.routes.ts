@@ -6,6 +6,7 @@ import { prisma } from '../../lib/prisma';
 import { cache } from '../../lib/cache';
 import { buildContext } from './context_builder';
 import { generateReply, ChatTurn, ocrImage } from './coach';
+import { detectExportRequest, buildExportReply, buildDynamicExportReply, ChatAttachment } from './export_intent';
 
 export const chatRouter = Router();
 chatRouter.use(requireAuth);
@@ -41,6 +42,29 @@ chatRouter.post(
 
     // เก็บข้อความผู้ใช้
     await prisma.chatMessage.create({ data: { userId, role: 'user', content: message } });
+
+    // ── ถ้าเป็นคำขอ "ไฟล์การเงิน" → พี่เงินสร้างไฟล์ + แนบปุ่มดาวน์โหลด ──
+    const exp = detectExportRequest(message);
+    if (exp) {
+      let reply: string;
+      let attachment: ChatAttachment | null;
+      if (exp.kind === 'custom') {
+        // ข้อมูลจากบทสนทนา → ให้ LLM จัดเป็นตาราง
+        const ctx = await buildContext(userId);
+        const recent = await prisma.chatMessage.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 8 });
+        const history: ChatTurn[] = recent
+          .reverse()
+          .map((mm) => ({ role: mm.role === 'assistant' ? 'assistant' : 'user', content: mm.content }));
+        ({ reply, attachment } = await buildDynamicExportReply(userId, exp.format, ctx, message, history));
+      } else {
+        ({ reply, attachment } = buildExportReply(userId, exp.kind, exp.format));
+      }
+      const saved = await prisma.chatMessage.create({
+        data: { userId, role: 'assistant', content: reply, context: JSON.stringify({ source: 'export', attachment }) },
+      });
+      res.status(201).json({ message: saved, source: 'export', attachment });
+      return;
+    }
 
     // ประกอบ context จริง + ดึง history ล่าสุด
     const context = await buildContext(userId);
