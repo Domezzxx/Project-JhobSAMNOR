@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../core/api/api_client.dart';
 
 class AppUser {
@@ -97,7 +98,10 @@ class AuthController extends StateNotifier<AuthState> {
   Future<bool> loginWithGoogle() async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final account = await GoogleSignIn(scopes: const ['email']).signIn();
+      final account = await GoogleSignIn(
+        clientId: kIsWeb ? '910041172864-i2089qsm7af59nbncntnbbqv84pngv20.apps.googleusercontent.com' : null,
+        scopes: const ['email'],
+      ).signIn();
       if (account == null) {
         state = state.copyWith(loading: false); // ผู้ใช้ยกเลิก
         return false;
@@ -114,7 +118,7 @@ class AuthController extends StateNotifier<AuthState> {
         if (accessToken != null) 'accessToken': accessToken,
       });
     } catch (e) {
-      state = state.copyWith(loading: false, error: 'ล็อกอิน Google ไม่สำเร็จ ลองใหม่อีกครั้ง');
+      state = state.copyWith(loading: false, error: 'ล็อกอิน Google ไม่สำเร็จ: $e');
       return false;
     }
   }
@@ -139,7 +143,9 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _tokens.clear();
     try {
-      await GoogleSignIn().signOut();
+      await GoogleSignIn(
+        clientId: kIsWeb ? '910041172864-i2089qsm7af59nbncntnbbqv84pngv20.apps.googleusercontent.com' : null,
+      ).signOut();
       await FacebookAuth.instance.logOut();
     } catch (_) {}
     state = const AuthState();
