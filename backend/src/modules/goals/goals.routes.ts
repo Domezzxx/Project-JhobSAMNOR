@@ -14,15 +14,15 @@ goalsRouter.use(requireAuth);
 // 💡 จำนวนเงิน (target/current) เป็น "สตางค์" (Int) เหมือนทั้งระบบ
 const createGoalSchema = z.object({
   name: z.string().trim().min(1, 'ชื่อเป้าหมายห้ามว่าง').max(100),
-  target: z.number().int().positive('target ต้องมากกว่า 0'),
-  current: z.number().int().min(0).optional(),
+  target: z.number().int().positive('target ต้องมากกว่า 0').max(2147483647, 'เป้าหมายเงินออมสูงเกินขีดจำกัด (สูงสุดไม่เกิน 21.4 ล้านบาท)'),
+  current: z.number().int().min(0).max(2147483647, 'ยอดออมปัจจุบันสูงเกินขีดจำกัด').optional(),
   deadline: z.coerce.date().optional(), // รับ ISO string ("2026-12-31") ได้
 });
 
 const updateGoalSchema = createGoalSchema.partial();
 
 const depositSchema = z.object({
-  amount: z.number().int().positive('amount ต้องมากกว่า 0'),
+  amount: z.number().int().positive('amount ต้องมากกว่า 0').max(2147483647, 'ยอดเงินออมสูงเกินขีดจำกัด (สูงสุดไม่เกิน 21.4 ล้านบาท)'),
 });
 
 /** แนบ percentage (0–100, ปัดเลขจำนวนเต็ม) ให้ client เอาไปโชว์ progress ได้เลย */

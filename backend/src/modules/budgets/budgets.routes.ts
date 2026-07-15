@@ -10,7 +10,7 @@ budgetsRouter.use(requireAuth);
 
 const createBudgetSchema = z.object({
   categoryId: z.string().nullable().optional(),
-  amount: z.number().int().positive('amount ต้องมากกว่า 0'),
+  amount: z.number().int().positive('amount ต้องมากกว่า 0').max(2147483647, 'งบประมาณสูงเกินขีดจำกัด (สูงสุดไม่เกิน 21.4 ล้านบาท)'),
   period: z.enum(['monthly', 'weekly']).default('monthly'),
 });
 

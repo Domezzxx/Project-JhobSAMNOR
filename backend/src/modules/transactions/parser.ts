@@ -8,12 +8,16 @@ const THAI_MONTHS: Record<string, number> = {
 export function parseAmount(text: string): number | null {
   const m = text.match(/จำนวน(?:เงิน)?\s*(?::|：)?\s*([\d,]+\.\d{2})/);
   if (m) {
-    return Math.round(parseFloat(m[1].replace(/,/g, "")) * 100);
+    const val = Math.round(parseFloat(m[1].replace(/,/g, "")) * 100);
+    if (val <= 2147483647) return val;
   }
   const amts: number[] = [];
   const matches = text.matchAll(/([\d,]+\.\d{2})\s*บาท/g);
   for (const match of matches) {
-    amts.push(Math.round(parseFloat(match[1].replace(/,/g, "")) * 100));
+    const val = Math.round(parseFloat(match[1].replace(/,/g, "")) * 100);
+    if (val <= 2147483647) {
+      amts.push(val);
+    }
   }
   return amts.length > 0 ? Math.max(...amts) : null;
 }

@@ -16,7 +16,7 @@ subscriptionsRouter.use(requireAuth);
 
 const createSchema = z.object({
   name: z.string().trim().min(1, 'ชื่อห้ามว่าง').max(100),
-  amount: z.number().int().positive('amount ต้องมากกว่า 0'),
+  amount: z.number().int().positive('amount ต้องมากกว่า 0').max(2147483647, 'ยอดผู้ชำระเงินสูงเกินขีดจำกัด (สูงสุดไม่เกิน 21.4 ล้านบาท)'),
   cycle: z.enum(['monthly', 'yearly']).default('monthly'),
   nextBilling: z.coerce.date(),
   logo: z.string().max(200).optional(),
